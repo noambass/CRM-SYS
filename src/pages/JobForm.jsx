@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { supabase } from '@/api/supabaseClient';
@@ -48,17 +48,17 @@ import { toast } from 'sonner';
 import { JOB_STATUSES } from '@/components/shared/StatusFlow';
 
 const defaultPriorityOptions = [
-  { value: 'not_urgent', label: 'לא דחוף' },
-  { value: 'urgent', label: 'דחוף' },
+  { value: 'not_urgent', label: '׳׳ ׳“׳—׳•׳£' },
+  { value: 'urgent', label: '׳“׳—׳•׳£' },
 ];
 
 // Default statuses fallback (if AppConfig is not set)
 const defaultStatusOptions = [
-  { value: 'in_progress', label: 'בביצוע' },
-  { value: 'on_the_way', label: 'בדרך' },
-  { value: 'completed', label: 'הושלם' },
-  { value: 'pending_payment', label: 'ממתין לתשלום' },
-  { value: 'cancelled', label: 'בוטל' },
+  { value: 'in_progress', label: '׳‘׳‘׳™׳¦׳•׳¢' },
+  { value: 'on_the_way', label: '׳‘׳“׳¨׳' },
+  { value: 'completed', label: '׳”׳•׳©׳׳' },
+  { value: 'pending_payment', label: '׳׳׳×׳™׳ ׳׳×׳©׳׳•׳' },
+  { value: 'cancelled', label: '׳‘׳•׳˜׳' },
 ];
 
 const ALLOWED_STATUS_VALUES = new Set([
@@ -103,6 +103,7 @@ export default function JobForm() {
    const [datePickerOpen, setDatePickerOpen] = useState(false);
    const [timePickerOpen, setTimePickerOpen] = useState(false);
    const [showAdditionalContact, setShowAdditionalContact] = useState(false);
+   const [contactErrors, setContactErrors] = useState({});
 
   const [formData, setFormData] = useState({
      client_id: preselectedClientId || '',
@@ -134,6 +135,12 @@ export default function JobForm() {
     if (!user) return;
     loadData();
   }, [user]);
+
+  useEffect(() => {
+    if (!formData.client_id) {
+      setShowAdditionalContact(true);
+    }
+  }, [formData.client_id]);
 
   const loadData = async () => {
     if (!user) return;
@@ -222,8 +229,8 @@ export default function JobForm() {
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      toast.error('שגיאה בטעינת נתונים', {
-        description: 'נסה שוב בעוד רגע',
+      toast.error('׳©׳’׳™׳׳” ׳‘׳˜׳¢׳™׳ ׳× ׳ ׳×׳•׳ ׳™׳', {
+        description: '׳ ׳¡׳” ׳©׳•׳‘ ׳‘׳¢׳•׳“ ׳¨׳’׳¢',
         duration: 4000
       });
     } finally {
@@ -254,6 +261,8 @@ export default function JobForm() {
       address: prev.address || client.address || '',
       city: prev.city || client.city || ''
     }));
+    setShowAdditionalContact(false);
+    setContactErrors(prev => ({ ...prev, contact_name: null }));
     setClientPopoverOpen(false);
   };
 
@@ -275,6 +284,8 @@ export default function JobForm() {
       client_name: displayName,
       client_phone: newClient.phone
     }));
+    setShowAdditionalContact(false);
+    setContactErrors(prev => ({ ...prev, contact_name: null }));
     setClientPopoverOpen(false);
   };
 
@@ -297,9 +308,11 @@ export default function JobForm() {
 
     try {
       // Validate required fields
-      if (!formData.client_id && !formData.contact_name) {
-        toast.error('⚠ שגיאה בשמירה', {
-          description: 'חובה לבחור לקוח או להזין איש קשר',
+      if (!formData.client_id && !formData.contact_name.trim()) {
+        setShowAdditionalContact(true);
+        setContactErrors(prev => ({ ...prev, contact_name: 'שם איש קשר הוא שדה חובה כשאין לקוח' }));
+        toast.error('שגיאה בשמירה', {
+          description: 'אנא הזן שם איש קשר או בחר לקוח',
           duration: 5000
         });
         setSaving(false);
@@ -307,8 +320,8 @@ export default function JobForm() {
       }
 
       if (!formData.title || formData.title.length < 3) {
-        toast.error('⚠ שגיאה בשמירה', {
-          description: 'כותרת חייבת להכיל לפחות 3 תווים',
+        toast.error('ג  ׳©׳’׳™׳׳” ׳‘׳©׳׳™׳¨׳”', {
+          description: '׳›׳•׳×׳¨׳× ׳—׳™׳™׳‘׳× ׳׳”׳›׳™׳ ׳׳₪׳—׳•׳× 3 ׳×׳•׳•׳™׳',
           duration: 5000
         });
         setSaving(false);
@@ -316,8 +329,8 @@ export default function JobForm() {
       }
 
       if (!formData.address) {
-        toast.error('⚠ שגיאה בשמירה', {
-          description: 'כתובת היא שדה חובה',
+        toast.error('ג  ׳©׳’׳™׳׳” ׳‘׳©׳׳™׳¨׳”', {
+          description: '׳›׳×׳•׳‘׳× ׳”׳™׳ ׳©׳“׳” ׳—׳•׳‘׳”',
           duration: 5000
         });
         setSaving(false);
@@ -359,7 +372,7 @@ export default function JobForm() {
             contact_name: formData.contact_name,
             phone: formData.contact_phone || '',
             client_type: 'private',
-            tags: ['איש קשר'],
+            tags: ['׳׳™׳© ׳§׳©׳¨'],
             status: 'active'
           }])
           .select('*')
@@ -378,8 +391,8 @@ export default function JobForm() {
           .eq('id', jobId)
           .eq('owner_id', user.id);
         if (error) throw error;
-        toast.success('✓ העבודה עודכנה בהצלחה', {
-          description: `${submitData.title} עודכנה במערכת`,
+        toast.success('ג“ ׳”׳¢׳‘׳•׳“׳” ׳¢׳•׳“׳›׳ ׳” ׳‘׳”׳¦׳׳—׳”', {
+          description: `${submitData.title} ׳¢׳•׳“׳›׳ ׳” ׳‘׳׳¢׳¨׳›׳×`,
           duration: 4000
         });
       } else {
@@ -391,20 +404,20 @@ export default function JobForm() {
         if (error) throw error;
 
         if (submitData.scheduled_date && submitData.scheduled_time) {
-          toast.success('✓ העבודה נוצרה ותוזמנה בהצלחה', {
-            description: `${submitData.title} תבוצע ב-${format(new Date(submitData.scheduled_date), 'dd/MM/yyyy')} בשעה ${submitData.scheduled_time}`,
+          toast.success('ג“ ׳”׳¢׳‘׳•׳“׳” ׳ ׳•׳¦׳¨׳” ׳•׳×׳•׳–׳׳ ׳” ׳‘׳”׳¦׳׳—׳”', {
+            description: `${submitData.title} ׳×׳‘׳•׳¦׳¢ ׳‘-${format(new Date(submitData.scheduled_date), 'dd/MM/yyyy')} ׳‘׳©׳¢׳” ${submitData.scheduled_time}`,
             duration: 5000,
             action: {
-              label: 'לוח שנה',
+              label: '׳׳•׳— ׳©׳ ׳”',
               onClick: () => navigate(createPageUrl('Calendar'))
             }
           });
         } else {
-          toast.success('✓ העבודה נוצרה בהצלחה', {
-            description: `${submitData.title} נוצרה - זכרו לתזמן אותה`,
+          toast.success('ג“ ׳”׳¢׳‘׳•׳“׳” ׳ ׳•׳¦׳¨׳” ׳‘׳”׳¦׳׳—׳”', {
+            description: `${submitData.title} ׳ ׳•׳¦׳¨׳” - ׳–׳›׳¨׳• ׳׳×׳–׳׳ ׳׳•׳×׳”`,
             duration: 5000,
             action: {
-              label: 'ראה עבודה',
+              label: '׳¨׳׳” ׳¢׳‘׳•׳“׳”',
               onClick: () => navigate(createPageUrl(`JobDetails?id=${newJob?.id}`))
             }
           });
@@ -414,8 +427,8 @@ export default function JobForm() {
       navigate(createPageUrl('Jobs'));
     } catch (error) {
       console.error('Error saving job:', error);
-      toast.error('✗ שגיאה בשמירה', {
-        description: 'אירעה שגיאה בשמירת העבודה. נסה שוב',
+      toast.error('ג— ׳©׳’׳™׳׳” ׳‘׳©׳׳™׳¨׳”', {
+        description: '׳׳™׳¨׳¢׳” ׳©׳’׳™׳׳” ׳‘׳©׳׳™׳¨׳× ׳”׳¢׳‘׳•׳“׳”. ׳ ׳¡׳” ׳©׳•׳‘',
         duration: 6000
       });
     } finally {
@@ -444,10 +457,10 @@ export default function JobForm() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
-            {isEditing ? 'עריכת עבודה' : 'עבודה חדשה'}
+            {isEditing ? '׳¢׳¨׳™׳›׳× ׳¢׳‘׳•׳“׳”' : '׳¢׳‘׳•׳“׳” ׳—׳“׳©׳”'}
           </h1>
           <p className="text-slate-500 mt-1">
-            {isEditing ? 'עדכן את פרטי העבודה' : 'צור עבודה חדשה במערכת'}
+            {isEditing ? '׳¢׳“׳›׳ ׳׳× ׳₪׳¨׳˜׳™ ׳”׳¢׳‘׳•׳“׳”' : '׳¦׳•׳¨ ׳¢׳‘׳•׳“׳” ׳—׳“׳©׳” ׳‘׳׳¢׳¨׳›׳×'}
           </p>
         </div>
       </div>
@@ -456,14 +469,14 @@ export default function JobForm() {
         {/* Client Selection */}
         <Card className="border-0 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">לקוח</CardTitle>
+            <CardTitle className="text-lg">׳׳§׳•׳—</CardTitle>
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setCreateClientDialogOpen(true)}
             >
-              + לקוח חדש
+              + ׳׳§׳•׳— ׳—׳“׳©
             </Button>
           </CardHeader>
           <CardContent>
@@ -480,16 +493,16 @@ export default function JobForm() {
                       <p className="text-sm text-slate-500" dir="ltr">{formData.client_phone}</p>
                     </div>
                   ) : (
-                    <span className="text-slate-500">בחר לקוח...</span>
+                    <span className="text-slate-500">׳‘׳—׳¨ ׳׳§׳•׳—...</span>
                   )}
                   <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-full p-0" align="start">
                 <Command dir="rtl">
-                  <CommandInput placeholder="חפש לקוח..." />
+                  <CommandInput placeholder="׳—׳₪׳© ׳׳§׳•׳—..." />
                   <CommandList>
-                    <CommandEmpty>לא נמצאו לקוחות</CommandEmpty>
+                    <CommandEmpty>׳׳ ׳ ׳׳¦׳׳• ׳׳§׳•׳—׳•׳×</CommandEmpty>
                     <CommandGroup>
                       {clients.map((client) => {
                        const displayName = client.client_type === 'company' ? client.company_name : client.contact_name;
@@ -523,32 +536,32 @@ export default function JobForm() {
         {/* Job Details */}
         <Card className="border-0 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg">פרטי העבודה</CardTitle>
+            <CardTitle className="text-lg">׳₪׳¨׳˜׳™ ׳”׳¢׳‘׳•׳“׳”</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-               <Label htmlFor="title">כותרת</Label>
+               <Label htmlFor="title">׳›׳•׳×׳¨׳×</Label>
                <Input
                  id="title"
                  value={formData.title}
                  onChange={(e) => handleChange('title', e.target.value)}
-                 placeholder="תיאור קצר של העבודה"
+                 placeholder="׳×׳™׳׳•׳¨ ׳§׳¦׳¨ ׳©׳ ׳”׳¢׳‘׳•׳“׳”"
                />
              </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">תיאור מפורט</Label>
+              <Label htmlFor="description">׳×׳™׳׳•׳¨ ׳׳₪׳•׳¨׳˜</Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => handleChange('description', e.target.value)}
-                placeholder="תיאור מלא של העבודה..."
+                placeholder="׳×׳™׳׳•׳¨ ׳׳׳ ׳©׳ ׳”׳¢׳‘׳•׳“׳”..."
                 rows={4}
               />
             </div>
 
             <div className="space-y-2">
-              <Label>עדיפות</Label>
+              <Label>׳¢׳“׳™׳₪׳•׳×</Label>
               <Select value={formData.priority} onValueChange={(v) => handleChange('priority', v)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -563,25 +576,36 @@ export default function JobForm() {
               </Select>
             </div>
 
-            {showAdditionalContact && (
+            {(!formData.client_id || showAdditionalContact) && (
               <div className="pt-2 border-t border-slate-200">
-                <p className="text-sm font-medium text-slate-600 mb-4">איש קשר ראשי בעבודה</p>
+                <p className="text-sm font-medium text-slate-600 mb-4">
+                  {formData.client_id ? 'איש קשר נוסף בעבודה' : 'איש קשר בעבודה'}
+                </p>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="contact_name">שם איש קשר</Label>
+                    <Label htmlFor="contact_name">
+                      {formData.client_id ? 'שם איש קשר' : 'שם איש קשר *'}
+                    </Label>
                     <Input
                       id="contact_name"
                       value={formData.contact_name}
                       onChange={(e) => {
                         handleChange('contact_name', e.target.value);
+                        if (contactErrors.contact_name) {
+                          setContactErrors(prev => ({ ...prev, contact_name: null }));
+                        }
                         setFormData(prev => ({ ...prev, primary_contact_name: e.target.value }));
                       }}
-                      placeholder="שם איש הקשר"
+                      placeholder="שם איש קשר"
+                      required={!formData.client_id}
                     />
+                    {contactErrors.contact_name && (
+                      <p className="text-xs text-red-600">{contactErrors.contact_name}</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="contact_phone">טלפון איש קשר</Label>
+                    <Label htmlFor="contact_phone">׳˜׳׳₪׳•׳ ׳׳™׳© ׳§׳©׳¨</Label>
                     <Input
                       id="contact_phone"
                       value={formData.contact_phone}
@@ -589,29 +613,31 @@ export default function JobForm() {
                         handleChange('contact_phone', e.target.value);
                         setFormData(prev => ({ ...prev, primary_contact_phone: e.target.value }));
                       }}
-                      placeholder="טלפון איש הקשר"
+                      placeholder="׳˜׳׳₪׳•׳ ׳׳™׳© ׳”׳§׳©׳¨"
                     />
                   </div>
                 </div>
               </div>
             )}
-            <button
-              type="button"
-              onClick={() => setShowAdditionalContact(!showAdditionalContact)}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 mt-2"
-            >
-              {showAdditionalContact ? (
-                <>
-                  <ChevronUp className="w-4 h-4" />
-                  הסתר איש קשר נוסף
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="w-4 h-4" />
-                  הוסף איש קשר נוסף
-                </>
-              )}
-            </button>
+            {formData.client_id && (
+              <button
+                type="button"
+                onClick={() => setShowAdditionalContact(!showAdditionalContact)}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 mt-2"
+              >
+                {showAdditionalContact ? (
+                  <>
+                    <ChevronUp className="w-4 h-4" />
+                    הסתר איש קשר נוסף
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-4 h-4" />
+                    הוסף איש קשר נוסף
+                  </>
+                )}
+              </button>
+            )}
           </CardContent>
         </Card>
 
@@ -620,38 +646,38 @@ export default function JobForm() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <MapPin className="w-5 h-5" />
-              מיקום
+              ׳׳™׳§׳•׳
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="address">כתובת *</Label>
+              <Label htmlFor="address">׳›׳×׳•׳‘׳× *</Label>
               <Input
                 id="address"
                 value={formData.address}
                 onChange={(e) => handleChange('address', e.target.value)}
-                placeholder="רחוב, מספר בית"
+                placeholder="׳¨׳—׳•׳‘, ׳׳¡׳₪׳¨ ׳‘׳™׳×"
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="city">עיר</Label>
+              <Label htmlFor="city">׳¢׳™׳¨</Label>
               <Input
                 id="city"
                 value={formData.city}
                 onChange={(e) => handleChange('city', e.target.value)}
-                placeholder="עיר"
+                placeholder="׳¢׳™׳¨"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="arrival_notes">הערות הגעה</Label>
+              <Label htmlFor="arrival_notes">׳”׳¢׳¨׳•׳× ׳”׳’׳¢׳”</Label>
               <Textarea
                 id="arrival_notes"
                 value={formData.arrival_notes || ''}
                 onChange={(e) => handleChange('arrival_notes', e.target.value)}
-                placeholder="הערות בנוגע להגעה למיקום (דלת כניסה, מפתח, הוראות וכו')"
+                placeholder="׳”׳¢׳¨׳•׳× ׳‘׳ ׳•׳’׳¢ ׳׳”׳’׳¢׳” ׳׳׳™׳§׳•׳ (׳“׳׳× ׳›׳ ׳™׳¡׳”, ׳׳₪׳×׳—, ׳”׳•׳¨׳׳•׳× ׳•׳›׳•')"
                 rows={2}
               />
             </div>
@@ -663,7 +689,7 @@ export default function JobForm() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <FileText className="w-5 h-5" />
-              פרטי עבודה ומחיר
+              ׳₪׳¨׳˜׳™ ׳¢׳‘׳•׳“׳” ׳•׳׳—׳™׳¨
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -679,13 +705,13 @@ export default function JobForm() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            תזמון
+            ׳×׳–׳׳•׳
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>תאריך</Label>
+              <Label>׳×׳׳¨׳™׳</Label>
               <Dialog open={datePickerOpen} onOpenChange={setDatePickerOpen}>
                 <button
                   type="button"
@@ -694,12 +720,12 @@ export default function JobForm() {
                 >
                   <ChevronDown className="w-4 h-4 text-slate-400" />
                   <span className="text-slate-700">
-                    {formData.scheduled_date ? format(new Date(formData.scheduled_date), 'dd/MM/yyyy', { locale: he }) : 'בחר תאריך...'}
+                    {formData.scheduled_date ? format(new Date(formData.scheduled_date), 'dd/MM/yyyy', { locale: he }) : '׳‘׳—׳¨ ׳×׳׳¨׳™׳...'}
                   </span>
                 </button>
                 <DialogContent className="w-auto">
                   <DialogHeader>
-                    <DialogTitle>בחר תאריך</DialogTitle>
+                    <DialogTitle>׳‘׳—׳¨ ׳×׳׳¨׳™׳</DialogTitle>
                   </DialogHeader>
                   <DatePicker
                     mode="single"
@@ -716,7 +742,7 @@ export default function JobForm() {
             </div>
 
             <div className="space-y-2">
-              <Label>שעה</Label>
+              <Label>׳©׳¢׳”</Label>
               <Dialog open={timePickerOpen} onOpenChange={setTimePickerOpen}>
                 <button
                   type="button"
@@ -725,12 +751,12 @@ export default function JobForm() {
                 >
                   <ChevronDown className="w-4 h-4 text-slate-400" />
                   <span className="text-slate-700">
-                    {formData.scheduled_time || 'בחר שעה...'}
+                    {formData.scheduled_time || '׳‘׳—׳¨ ׳©׳¢׳”...'}
                   </span>
                 </button>
                 <DialogContent className="w-auto">
                   <DialogHeader>
-                    <DialogTitle>בחר שעה</DialogTitle>
+                    <DialogTitle>׳‘׳—׳¨ ׳©׳¢׳”</DialogTitle>
                   </DialogHeader>
                   <div className="grid grid-cols-4 gap-2 p-4 max-h-96 overflow-y-auto">
                     {(() => {
@@ -768,17 +794,17 @@ export default function JobForm() {
 
           <div className="p-3 rounded-lg bg-slate-100 border border-slate-200">
             <p className="text-sm">
-              <span className="font-medium text-slate-700">סטטוס נוכחי:</span>
+              <span className="font-medium text-slate-700">׳¡׳˜׳˜׳•׳¡ ׳ ׳•׳›׳—׳™:</span>
               <span className="text-slate-700 mr-2">
-                {formData.scheduled_date && formData.scheduled_time ? '✓ תוזמן' : '○ טרם תוזמן'}
+                {formData.scheduled_date && formData.scheduled_time ? 'ג“ ׳×׳•׳–׳׳' : 'ג—‹ ׳˜׳¨׳ ׳×׳•׳–׳׳'}
               </span>
             </p>
-            <p className="text-xs text-slate-500 mt-1">הסטטוס נקבע אוטומטית לפי הזנת תאריך ושעה</p>
+            <p className="text-xs text-slate-500 mt-1">׳”׳¡׳˜׳˜׳•׳¡ ׳ ׳§׳‘׳¢ ׳׳•׳˜׳•׳׳˜׳™׳× ׳׳₪׳™ ׳”׳–׳ ׳× ׳×׳׳¨׳™׳ ׳•׳©׳¢׳”</p>
           </div>
 
           <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
             <p className="text-sm text-blue-700">
-              <span className="font-medium">סטטוס הביצוע:</span> לשינוי סטטוס הביצוע (בביצוע, בדרך, הושלם וכו'), השתמש בעמוד פרטי העבודה
+              <span className="font-medium">׳¡׳˜׳˜׳•׳¡ ׳”׳‘׳™׳¦׳•׳¢:</span> ׳׳©׳™׳ ׳•׳™ ׳¡׳˜׳˜׳•׳¡ ׳”׳‘׳™׳¦׳•׳¢ (׳‘׳‘׳™׳¦׳•׳¢, ׳‘׳“׳¨׳, ׳”׳•׳©׳׳ ׳•׳›׳•'), ׳”׳©׳×׳׳© ׳‘׳¢׳׳•׳“ ׳₪׳¨׳˜׳™ ׳”׳¢׳‘׳•׳“׳”
             </p>
           </div>
         </CardContent>
@@ -789,27 +815,27 @@ export default function JobForm() {
         {/* Notes */}
         <Card className="border-0 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg">הערות</CardTitle>
+            <CardTitle className="text-lg">׳”׳¢׳¨׳•׳×</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="notes">הערות (נראות ללקוח)</Label>
+              <Label htmlFor="notes">׳”׳¢׳¨׳•׳× (׳ ׳¨׳׳•׳× ׳׳׳§׳•׳—)</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => handleChange('notes', e.target.value)}
-                placeholder="הערות שיוצגו ללקוח..."
+                placeholder="׳”׳¢׳¨׳•׳× ׳©׳™׳•׳¦׳’׳• ׳׳׳§׳•׳—..."
                 rows={3}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="internal_notes">הערות פנימיות</Label>
+              <Label htmlFor="internal_notes">׳”׳¢׳¨׳•׳× ׳₪׳ ׳™׳׳™׳•׳×</Label>
               <Textarea
                 id="internal_notes"
                 value={formData.internal_notes}
                 onChange={(e) => handleChange('internal_notes', e.target.value)}
-                placeholder="הערות פנימיות (לא נראות ללקוח)..."
+                placeholder="׳”׳¢׳¨׳•׳× ׳₪׳ ׳™׳׳™׳•׳× (׳׳ ׳ ׳¨׳׳•׳× ׳׳׳§׳•׳—)..."
                 rows={3}
               />
             </div>
@@ -827,12 +853,12 @@ export default function JobForm() {
             {saving ? (
               <>
                 <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                שומר...
+                ׳©׳•׳׳¨...
               </>
             ) : (
               <>
                 <Save className="w-4 h-4 ml-2" />
-                {isEditing ? 'שמור שינויים' : 'צור עבודה'}
+                {isEditing ? '׳©׳׳•׳¨ ׳©׳™׳ ׳•׳™׳™׳' : '׳¦׳•׳¨ ׳¢׳‘׳•׳“׳”'}
               </>
             )}
           </Button>
@@ -841,11 +867,12 @@ export default function JobForm() {
             variant="outline"
             onClick={() => navigate(-1)}
           >
-            ביטול
+            ׳‘׳™׳˜׳•׳
           </Button>
         </div>
       </form>
     </div>
   );
 }
+
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { supabase } from '@/api/supabaseClient';
@@ -20,6 +20,7 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, addMonths, subMonths, isSameDay, startOfWeek, endOfWeek, isToday, isSameMonth } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { queryClientInstance } from '@/lib/query-client';
 
 export default function Calendar() {
   const navigate = useNavigate();
@@ -34,6 +35,9 @@ export default function Calendar() {
    const [scheduleData, setScheduleData] = useState({ date: '', time: '' });
    const [selectedJobForSchedule, setSelectedJobForSchedule] = useState(null);
    const [selectedJobForQuickSchedule, setSelectedJobForQuickSchedule] = useState(null);
+   const [quickRescheduleOpen, setQuickRescheduleOpen] = useState(false);
+   const [quickRescheduleData, setQuickRescheduleData] = useState({ date: '', time: '' });
+   const [selectedJobForQuickReschedule, setSelectedJobForQuickReschedule] = useState(null);
    const [viewDetails, setViewDetails] = useState('detailed'); // minimal or detailed
 
   useEffect(() => {
@@ -82,8 +86,8 @@ export default function Calendar() {
       setJobs(merged);
     } catch (error) {
       console.error('Error loading jobs:', error);
-      toast.error('שגיאה בטעינת עבודות', {
-        description: 'נסה שוב בעוד רגע',
+      toast.error('׳©׳’׳™׳׳” ׳‘׳˜׳¢׳™׳ ׳× ׳¢׳‘׳•׳“׳•׳×', {
+        description: '׳ ׳¡׳” ׳©׳•׳‘ ׳‘׳¢׳•׳“ ׳¨׳’׳¢',
         duration: 4000
       });
     } finally {
@@ -147,14 +151,10 @@ export default function Calendar() {
 
     try {
       const scheduledAt = new Date(`${scheduleData.date}T${scheduleData.time}`).toISOString();
-      const nextStatus = jobToSchedule.status === 'waiting_schedule'
-        ? 'waiting_execution'
-        : jobToSchedule.status;
       const updateData = {
         scheduled_at: scheduledAt,
         scheduled_date: scheduleData.date,
-        scheduled_time: scheduleData.time,
-        status: jobToSchedule.status === 'done' ? jobToSchedule.status : nextStatus
+        scheduled_time: scheduleData.time
       };
 
       const { error } = await supabase
@@ -183,16 +183,71 @@ export default function Calendar() {
       setScheduleData({ date: '', time: '' });
       setSelectedJobForSchedule(null);
       setSelectedJobForQuickSchedule(null);
+      toast.success('התזמון עודכן בהצלחה', {
+        duration: 3000
+      });
+      queryClientInstance.invalidateQueries({ queryKey: ['calendar'] });
+      queryClientInstance.invalidateQueries({ queryKey: ['jobs'] });
     } catch (error) {
       console.error('Error scheduling job:', error);
-      toast.error('שגיאה בתזמון עבודה', {
+      toast.error('שגיאה בעדכון התזמון', {
         description: 'נסה שוב בעוד רגע',
         duration: 4000
       });
     }
   };
 
-  const weekDays = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+  const handleQuickReschedule = async () => {
+    if (!selectedJobForQuickReschedule || !quickRescheduleData.date || !quickRescheduleData.time) return;
+    if (!user) return;
+
+    try {
+      const scheduledAt = new Date(`${quickRescheduleData.date}T${quickRescheduleData.time}`).toISOString();
+      const updateData = {
+        scheduled_at: scheduledAt,
+        scheduled_date: quickRescheduleData.date,
+        scheduled_time: quickRescheduleData.time
+      };
+
+      const { error } = await supabase
+        .from('jobs')
+        .update(updateData)
+        .eq('id', selectedJobForQuickReschedule.id)
+        .eq('owner_id', user.id);
+      if (error) throw error;
+
+      const updatedJobs = jobs.map(j => j.id === selectedJobForQuickReschedule.id ? {
+        ...j,
+        ...updateData
+      } : j);
+      setJobs(updatedJobs);
+
+      if (selectedDay) {
+        const updatedDayJobs = updatedJobs.filter((j) => {
+          const scheduledDate = getJobScheduledDate(j);
+          return scheduledDate && isSameDay(scheduledDate, selectedDay);
+        });
+        setDayJobs(updatedDayJobs);
+      }
+
+      setQuickRescheduleOpen(false);
+      setQuickRescheduleData({ date: '', time: '' });
+      setSelectedJobForQuickReschedule(null);
+      toast.success('התאריך והשעה עודכנו בהצלחה', {
+        duration: 3000
+      });
+      queryClientInstance.invalidateQueries({ queryKey: ['calendar'] });
+      queryClientInstance.invalidateQueries({ queryKey: ['jobs'] });
+    } catch (error) {
+      console.error('Error rescheduling job:', error);
+      toast.error('שגיאה בעדכון התאריך והשעה', {
+        description: 'נסה שוב בעוד רגע',
+        duration: 4000
+      });
+    }
+  };
+
+  const weekDays = ['׳', '׳‘', '׳’', '׳“', '׳”', '׳•', '׳©'];
 
   if (isLoadingAuth) return <LoadingSpinner />;
   if (!user) return null;
@@ -209,8 +264,8 @@ export default function Calendar() {
             <CalendarIcon className="w-6 h-6 text-emerald-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">לוח שנה</h1>
-            <p className="text-slate-500">נהל את העבודות והתזמונים שלך</p>
+            <h1 className="text-2xl font-bold text-slate-800">׳׳•׳— ׳©׳ ׳”</h1>
+            <p className="text-slate-500">׳ ׳”׳ ׳׳× ׳”׳¢׳‘׳•׳“׳•׳× ׳•׳”׳×׳–׳׳•׳ ׳™׳ ׳©׳׳</p>
           </div>
         </div>
         <Button
@@ -218,7 +273,7 @@ export default function Calendar() {
           className="bg-[#00214d] hover:bg-[#00214d]/90"
         >
           <Plus className="w-4 h-4 ml-2" />
-          עבודה חדשה
+          ׳¢׳‘׳•׳“׳” ׳—׳“׳©׳”
         </Button>
       </div>
 
@@ -226,7 +281,7 @@ export default function Calendar() {
        {getUnscheduledJobs().length > 0 && (
          <Card className="border-0 shadow-sm border-l-4 border-l-amber-500 bg-amber-50">
            <CardContent className="p-4">
-             <h3 className="font-semibold text-amber-900 mb-3">עבודות לתזמון ({getUnscheduledJobs().length})</h3>
+             <h3 className="font-semibold text-amber-900 mb-3">׳¢׳‘׳•׳“׳•׳× ׳׳×׳–׳׳•׳ ({getUnscheduledJobs().length})</h3>
              <div className="space-y-2 max-h-48 overflow-y-auto">
                {getUnscheduledJobs().slice(0, 10).map((job) => (
                  <Card 
@@ -253,7 +308,7 @@ export default function Calendar() {
                            </div>
                          )}
                          {selectedJobForQuickSchedule?.id === job.id && (
-                           <p className="text-xs text-amber-700 mt-1 font-medium">← בחר יום בלוח שנה</p>
+                           <p className="text-xs text-amber-700 mt-1 font-medium">ג† ׳‘׳—׳¨ ׳™׳•׳ ׳‘׳׳•׳— ׳©׳ ׳”</p>
                          )}
                        </div>
                      </div>
@@ -261,7 +316,7 @@ export default function Calendar() {
                  </Card>
                ))}
                {getUnscheduledJobs().length > 10 && (
-                 <p className="text-xs text-amber-700 text-center py-2">ועוד {getUnscheduledJobs().length - 10} עבודות לתזמון</p>
+                 <p className="text-xs text-amber-700 text-center py-2">׳•׳¢׳•׳“ {getUnscheduledJobs().length - 10} ׳¢׳‘׳•׳“׳•׳× ׳׳×׳–׳׳•׳</p>
                )}
              </div>
            </CardContent>
@@ -284,12 +339,12 @@ export default function Calendar() {
               {format(currentDate, 'MMMM yyyy', { locale: he })}
             </h2>
             <Button variant="outline" onClick={handleToday}>
-              היום
+              ׳”׳™׳•׳
             </Button>
           </div>
 
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm text-slate-600">תצוגה:</span>
+            <span className="text-sm text-slate-600">׳×׳¦׳•׳’׳”:</span>
             <Button
               variant={viewDetails === 'minimal' ? 'default' : 'outline'}
               size="sm"
@@ -297,7 +352,7 @@ export default function Calendar() {
               style={viewDetails === 'minimal' ? { backgroundColor: '#00214d' } : {}}
             >
               <Eye className="w-4 h-4 ml-1" />
-              מינימלי
+              ׳׳™׳ ׳™׳׳׳™
             </Button>
             <Button
               variant={viewDetails === 'detailed' ? 'default' : 'outline'}
@@ -306,7 +361,7 @@ export default function Calendar() {
               style={viewDetails === 'detailed' ? { backgroundColor: '#00214d' } : {}}
             >
               <Eye className="w-4 h-4 ml-1" />
-              מפורט
+              ׳׳₪׳•׳¨׳˜
             </Button>
           </div>
 
@@ -376,7 +431,7 @@ export default function Calendar() {
                         }}
                         className="text-xs text-emerald-600 hover:text-emerald-700 font-medium py-1 w-full hover:bg-emerald-50 rounded transition-colors"
                       >
-                        +{dayJobs.length - (viewDetails === 'minimal' ? 1 : 2)} נוספות
+                        +{dayJobs.length - (viewDetails === 'minimal' ? 1 : 2)} ׳ ׳•׳¡׳₪׳•׳×
                       </button>
                     )}
                   </div>
@@ -392,7 +447,7 @@ export default function Calendar() {
          <DialogContent className="max-w-2xl max-h-96 overflow-y-auto">
            <DialogHeader>
              <DialogTitle>
-               עבודות ליום {selectedDay ? format(selectedDay, 'dd/MM/yyyy') : ''}
+               ׳¢׳‘׳•׳“׳•׳× ׳׳™׳•׳ {selectedDay ? format(selectedDay, 'dd/MM/yyyy') : ''}
              </DialogTitle>
            </DialogHeader>
 
@@ -430,21 +485,42 @@ export default function Calendar() {
                          <JobStatusBadge status={job.status} />
                        </div>
                      </div>
-                     {!getJobScheduledDate(job) && (
-                       <Button
-                         size="sm"
-                         onClick={(e) => {
-                           e.stopPropagation();
-                           setSelectedJobForSchedule(job);
-                           setScheduleData({ date: format(selectedDay, 'yyyy-MM-dd'), time: '' });
-                           setScheduleDialogOpen(true);
-                         }}
-                         className="bg-emerald-500 hover:bg-emerald-600 text-white whitespace-nowrap"
-                       >
-                         <Clock className="w-3 h-3 ml-1" />
-                         תזמן
-                       </Button>
-                     )}
+                     <div className="flex flex-col gap-2">
+                       {!getJobScheduledDate(job) && (
+                         <Button
+                           size="sm"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             setSelectedJobForSchedule(job);
+                             setScheduleData({ date: format(selectedDay, 'yyyy-MM-dd'), time: '' });
+                             setScheduleDialogOpen(true);
+                           }}
+                           className="bg-emerald-500 hover:bg-emerald-600 text-white whitespace-nowrap"
+                         >
+                           <Clock className="w-3 h-3 ml-1" />
+                           ׳×׳–׳׳
+                         </Button>
+                       )}
+                       {getJobScheduledDate(job) && (
+                         <Button
+                           size="sm"
+                           variant="outline"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             const scheduledDate = getJobScheduledDate(job);
+                             setSelectedJobForQuickReschedule(job);
+                             setQuickRescheduleData({
+                               date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : '',
+                               time: job.scheduled_time || (scheduledDate ? format(scheduledDate, 'HH:mm') : '')
+                             });
+                             setQuickRescheduleOpen(true);
+                           }}
+                           className="whitespace-nowrap"
+                         >
+                           שינוי תאריך/שעה
+                         </Button>
+                       )}
+                     </div>
                    </div>
                  </CardContent>
                </Card>
@@ -457,12 +533,12 @@ export default function Calendar() {
         <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
          <DialogContent className="max-w-md">
            <DialogHeader>
-             <DialogTitle>תזמון עבודה: {(selectedJobForSchedule || selectedJobForQuickSchedule)?.title}</DialogTitle>
+             <DialogTitle>׳×׳–׳׳•׳ ׳¢׳‘׳•׳“׳”: {(selectedJobForSchedule || selectedJobForQuickSchedule)?.title}</DialogTitle>
            </DialogHeader>
 
            <div className="space-y-4">
              <div className="space-y-2">
-               <Label htmlFor="schedule-date">תאריך</Label>
+               <Label htmlFor="schedule-date">׳×׳׳¨׳™׳</Label>
                <Input
                  id="schedule-date"
                  type="date"
@@ -472,14 +548,14 @@ export default function Calendar() {
              </div>
 
              <div className="space-y-2">
-               <Label htmlFor="schedule-time">שעה</Label>
+               <Label htmlFor="schedule-time">׳©׳¢׳”</Label>
                <select
                  id="schedule-time"
                  value={scheduleData.time}
                  onChange={(e) => setScheduleData(prev => ({ ...prev, time: e.target.value }))}
                  className="w-full px-3 py-2 rounded-md border border-slate-200 bg-white text-sm"
                >
-                 <option value="">בחר שעה...</option>
+                 <option value="">׳‘׳—׳¨ ׳©׳¢׳”...</option>
                  {(() => {
                    const times = [];
                    for (let h = 0; h < 24; h++) {
@@ -504,7 +580,7 @@ export default function Calendar() {
                style={{ backgroundColor: '#00214d' }}
                className="hover:opacity-90"
              >
-               תזמן
+               ׳×׳–׳׳
              </Button>
              <Button
                type="button"
@@ -515,17 +591,85 @@ export default function Calendar() {
                  setSelectedJobForSchedule(null);
                }}
              >
-               ביטול
+               ׳‘׳™׳˜׳•׳
              </Button>
            </DialogFooter>
          </DialogContent>
+        </Dialog>
+
+        {/* Quick Reschedule Dialog */}
+        <Dialog open={quickRescheduleOpen} onOpenChange={setQuickRescheduleOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>שינוי תאריך ושעה</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="quick-reschedule-date">תאריך</Label>
+                <Input
+                  id="quick-reschedule-date"
+                  type="date"
+                  value={quickRescheduleData.date}
+                  onChange={(e) => setQuickRescheduleData(prev => ({ ...prev, date: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="quick-reschedule-time">שעה</Label>
+                <select
+                  id="quick-reschedule-time"
+                  value={quickRescheduleData.time}
+                  onChange={(e) => setQuickRescheduleData(prev => ({ ...prev, time: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-md border border-slate-200 bg-white text-sm"
+                >
+                  <option value="">בחר שעה...</option>
+                  {(() => {
+                    const times = [];
+                    for (let h = 0; h < 24; h++) {
+                      for (let m = 0; m < 60; m += 30) {
+                        const hour = String(h).padStart(2, '0');
+                        const minute = String(m).padStart(2, '0');
+                        times.push(`${hour}:${minute}`);
+                      }
+                    }
+                    return times.map(time => (
+                      <option key={time} value={time}>{time}</option>
+                    ));
+                  })()}
+                </select>
+              </div>
+            </div>
+
+            <DialogFooter className="flex-row-reverse gap-2">
+              <Button
+                onClick={handleQuickReschedule}
+                disabled={!quickRescheduleData.date || !quickRescheduleData.time}
+                style={{ backgroundColor: '#00214d' }}
+                className="hover:opacity-90"
+              >
+                שמור
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setQuickRescheduleOpen(false);
+                  setQuickRescheduleData({ date: '', time: '' });
+                  setSelectedJobForQuickReschedule(null);
+                }}
+              >
+                ביטול
+              </Button>
+            </DialogFooter>
+          </DialogContent>
         </Dialog>
 
         {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-sm text-slate-500 mb-1">עבודות החודש</p>
+            <p className="text-sm text-slate-500 mb-1">׳¢׳‘׳•׳“׳•׳× ׳”׳—׳•׳“׳©</p>
             <p className="text-2xl font-bold text-slate-800">
               {jobs.filter((job) => {
                 const scheduledDate = getJobScheduledDate(job);
@@ -536,7 +680,7 @@ export default function Calendar() {
         </Card>
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-sm text-slate-500 mb-1">מתוזמנות</p>
+            <p className="text-sm text-slate-500 mb-1">׳׳×׳•׳–׳׳ ׳•׳×</p>
             <p className="text-2xl font-bold text-blue-600">
               {jobs.filter((job) => {
                 const scheduledDate = getJobScheduledDate(job);
@@ -547,7 +691,7 @@ export default function Calendar() {
         </Card>
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-sm text-slate-500 mb-1">בביצוע</p>
+            <p className="text-sm text-slate-500 mb-1">׳‘׳‘׳™׳¦׳•׳¢</p>
             <p className="text-2xl font-bold text-orange-600">
               {jobs.filter((job) => {
                 const scheduledDate = getJobScheduledDate(job);
@@ -558,7 +702,7 @@ export default function Calendar() {
         </Card>
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-sm text-slate-500 mb-1">הושלמו</p>
+            <p className="text-sm text-slate-500 mb-1">׳”׳•׳©׳׳׳•</p>
             <p className="text-2xl font-bold text-green-600">
               {jobs.filter((job) => {
                 const scheduledDate = getJobScheduledDate(job);
@@ -571,3 +715,5 @@ export default function Calendar() {
     </div>
   );
 }
+
+

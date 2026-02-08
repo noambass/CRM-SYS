@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { supabase } from '@/api/supabaseClient';
@@ -99,16 +99,16 @@ export default function ClientForm() {
                       formData.client_type === 'customer_service' ? 'client_statuses_customer_service' :
                       'client_statuses_private';
     return configs[configType] || [
-      { value: 'active', label: 'פעיל' },
-      { value: 'inactive', label: 'לא פעיל' }
+      { value: 'active', label: '׳₪׳¢׳™׳' },
+      { value: 'inactive', label: '׳׳ ׳₪׳¢׳™׳' }
     ];
   };
 
   const ensureCustomerServiceTag = () => {
     if (formData.client_type === 'customer_service') {
       const tags = formData.tags || [];
-      if (!tags.includes('שירות לקוחות')) {
-        return [...tags, 'שירות לקוחות'];
+      if (!tags.includes('׳©׳™׳¨׳•׳× ׳׳§׳•׳—׳•׳×')) {
+        return [...tags, '׳©׳™׳¨׳•׳× ׳׳§׳•׳—׳•׳×'];
       }
     }
     return formData.tags || [];
@@ -130,7 +130,7 @@ export default function ClientForm() {
         setFormData({
           client_type: data.client_type || 'private',
           company_name: data.company_name || '',
-          contact_name: data.contact_name || '',
+          contact_name: data.contact_name || data.fullName || '',
           tax_id: data.tax_id || '',
           phone: data.phone || '',
           email: data.email || '',
@@ -185,7 +185,13 @@ export default function ClientForm() {
         setValidationSuccess(prev => ({ ...prev, tax_id: true }));
       }
     } else if (field === 'contact_name') {
-      const result = validateContactName(value);
+      const trimmedValue = value?.trim() || '';
+      if (!trimmedValue) {
+        setValidationErrors(prev => ({ ...prev, contact_name: '׳©׳ ׳׳™׳© ׳§׳©׳¨/׳©׳ ׳׳׳ ׳”׳•׳ ׳©׳“׳” ׳—׳•׳‘׳”' }));
+        setValidationSuccess(prev => ({ ...prev, contact_name: false }));
+        return;
+      }
+      const result = validateContactName(trimmedValue);
       if (!result.valid) {
         setValidationErrors(prev => ({ ...prev, contact_name: result.error }));
         setValidationSuccess(prev => ({ ...prev, contact_name: false }));
@@ -212,7 +218,7 @@ export default function ClientForm() {
         setDuplicateWarning({
           field,
           client: data[0],
-          message: `${field === 'phone' ? 'טלפון' : 'אימייל'} זה כבר קיים במערכת`
+          message: `${field === 'phone' ? '׳˜׳׳₪׳•׳' : '׳׳™׳׳™׳™׳'} ׳–׳” ׳›׳‘׳¨ ׳§׳™׳™׳ ׳‘׳׳¢׳¨׳›׳×`
         });
       } else {
         setDuplicateWarning(null);
@@ -228,23 +234,29 @@ export default function ClientForm() {
     
     // Validate all fields
     const phoneValidation = validatePhone(formData.phone);
-    const emailValidation = validateEmail(formData.email);
+    const emailValue = (formData.email || '').trim();
+    const emailValidation = emailValue ? validateEmail(emailValue) : { valid: true };
     const taxIdValidation = validateTaxId(formData.tax_id);
-    const contactNameValidation = validateContactName(formData.contact_name);
+    const trimmedContactName = (formData.contact_name || '').trim();
+    const contactNameValidation = validateContactName(trimmedContactName);
     
     const errors = {};
     if (!phoneValidation.valid) errors.phone = phoneValidation.error;
     if (!emailValidation.valid) errors.email = emailValidation.error;
     if (!taxIdValidation.valid) errors.tax_id = taxIdValidation.error;
-    if (!contactNameValidation.valid) errors.contact_name = contactNameValidation.error;
+    if (!trimmedContactName) {
+      errors.contact_name = '׳©׳ ׳׳™׳© ׳§׳©׳¨/׳©׳ ׳׳׳ ׳”׳•׳ ׳©׳“׳” ׳—׳•׳‘׳”';
+    } else if (!contactNameValidation.valid) {
+      errors.contact_name = contactNameValidation.error;
+    }
     
     if ((formData.client_type === 'company' || formData.client_type === 'customer_service') && !formData.company_name) {
-      errors.company_name = 'שם החברה הוא שדה חובה';
+      errors.company_name = '׳©׳ ׳”׳—׳‘׳¨׳” ׳”׳•׳ ׳©׳“׳” ׳—׳•׳‘׳”';
     }
     
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
-      toast.error('⚠ שגיאה בשמירה', {
+      toast.error('שגיאה בשמירה', {
         description: 'אנא מלא את כל השדות המסומנים באדום',
         duration: 6000
       });
@@ -254,7 +266,11 @@ export default function ClientForm() {
     setSaving(true);
 
     try {
-      const submitData = { ...formData, tags: ensureCustomerServiceTag() };
+      const submitData = { 
+        ...formData, 
+        contact_name: trimmedContactName,
+        tags: ensureCustomerServiceTag() 
+      };
       
       if (isEditing) {
         const { error } = await supabase
@@ -264,8 +280,8 @@ export default function ClientForm() {
           .eq('owner_id', user.id);
 
         if (error) throw error;
-        toast.success('✓ הלקוח עודכן בהצלחה', {
-          description: `${submitData.client_type === 'company' ? submitData.company_name : submitData.contact_name} עודכן במערכת`,
+        toast.success('ג“ ׳”׳׳§׳•׳— ׳¢׳•׳“׳›׳ ׳‘׳”׳¦׳׳—׳”', {
+          description: `${submitData.client_type === 'company' ? submitData.company_name : submitData.contact_name} ׳¢׳•׳“׳›׳ ׳‘׳׳¢׳¨׳›׳×`,
           duration: 4000
         });
       } else {
@@ -276,11 +292,11 @@ export default function ClientForm() {
           .single();
 
         if (error) throw error;
-        toast.success('✓ הלקוח נוצר בהצלחה', {
-          description: `${submitData.client_type === 'company' ? submitData.company_name : submitData.contact_name} נוסף למערכת`,
+        toast.success('ג“ ׳”׳׳§׳•׳— ׳ ׳•׳¦׳¨ ׳‘׳”׳¦׳׳—׳”', {
+          description: `${submitData.client_type === 'company' ? submitData.company_name : submitData.contact_name} ׳ ׳•׳¡׳£ ׳׳׳¢׳¨׳›׳×`,
           duration: 5000,
           action: {
-            label: 'צור עבודה',
+            label: '׳¦׳•׳¨ ׳¢׳‘׳•׳“׳”',
             onClick: () => navigate(createPageUrl(`JobForm?client_id=${newClient?.id}`))
           }
         });
@@ -289,8 +305,8 @@ export default function ClientForm() {
       navigate(createPageUrl('Clients'));
     } catch (error) {
       console.error('Error saving client:', error);
-      toast.error('✗ שגיאה בשמירה', {
-        description: 'אירעה שגיאה בשמירת הלקוח. נסה שוב',
+      toast.error('ג— ׳©׳’׳™׳׳” ׳‘׳©׳׳™׳¨׳”', {
+        description: '׳׳™׳¨׳¢׳” ׳©׳’׳™׳׳” ׳‘׳©׳׳™׳¨׳× ׳”׳׳§׳•׳—. ׳ ׳¡׳” ׳©׳•׳‘',
         duration: 6000
       });
     } finally {
@@ -316,10 +332,10 @@ export default function ClientForm() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
-            {isEditing ? 'עריכת לקוח' : 'לקוח חדש'}
+            {isEditing ? '׳¢׳¨׳™׳›׳× ׳׳§׳•׳—' : '׳׳§׳•׳— ׳—׳“׳©'}
           </h1>
           <p className="text-slate-500 mt-1">
-            {isEditing ? 'עדכן את פרטי הלקוח' : 'הוסף לקוח חדש למערכת'}
+            {isEditing ? '׳¢׳“׳›׳ ׳׳× ׳₪׳¨׳˜׳™ ׳”׳׳§׳•׳—' : '׳”׳•׳¡׳£ ׳׳§׳•׳— ׳—׳“׳© ׳׳׳¢׳¨׳›׳×'}
           </p>
         </div>
       </div>
@@ -328,22 +344,22 @@ export default function ClientForm() {
         {/* Client Type */}
         <Card className="border-0 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg">סוג לקוח</CardTitle>
+            <CardTitle className="text-lg">׳¡׳•׳’ ׳׳§׳•׳—</CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs value={formData.client_type} onValueChange={(v) => handleChange('client_type', v)}>
               <TabsList className="grid w-full grid-cols-3 bg-slate-100">
                 <TabsTrigger value="private" className="flex items-center gap-2">
                   <User className="w-4 h-4" />
-                  פרטי
+                  ׳₪׳¨׳˜׳™
                 </TabsTrigger>
                 <TabsTrigger value="company" className="flex items-center gap-2">
                   <Building2 className="w-4 h-4" />
-                  חברה
+                  ׳—׳‘׳¨׳”
                 </TabsTrigger>
                 <TabsTrigger value="customer_service" className="flex items-center gap-2">
                   <Headphones className="w-4 h-4" />
-                  שירות לקוחות
+                  ׳©׳™׳¨׳•׳× ׳׳§׳•׳—׳•׳×
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -353,13 +369,13 @@ export default function ClientForm() {
         {/* Basic Info */}
         <Card className="border-0 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg">פרטים בסיסיים</CardTitle>
+            <CardTitle className="text-lg">׳₪׳¨׳˜׳™׳ ׳‘׳¡׳™׳¡׳™׳™׳</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {(formData.client_type === 'company' || formData.client_type === 'customer_service') && (
               <div className="space-y-2">
                 <Label htmlFor="company_name">
-                  {formData.client_type === 'company' ? 'שם החברה *' : 'שם השירות *'}
+                  {formData.client_type === 'company' ? '׳©׳ ׳”׳—׳‘׳¨׳” *' : '׳©׳ ׳”׳©׳™׳¨׳•׳× *'}
                 </Label>
                 <div className="relative">
                   <Building2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -367,7 +383,7 @@ export default function ClientForm() {
                     id="company_name"
                     value={formData.company_name}
                     onChange={(e) => handleChange('company_name', e.target.value)}
-                    placeholder={formData.client_type === 'company' ? 'שם החברה' : 'שם השירות'}
+                    placeholder={formData.client_type === 'company' ? '׳©׳ ׳”׳—׳‘׳¨׳”' : '׳©׳ ׳”׳©׳™׳¨׳•׳×'}
                     className="pr-10"
                     required
                   />
@@ -377,7 +393,7 @@ export default function ClientForm() {
 
             <div className="space-y-2">
               <Label htmlFor="contact_name">
-                {formData.client_type === 'company' ? 'איש קשר *' : 'שם מלא *'}
+                {formData.client_type === 'company' ? '׳׳™׳© ׳§׳©׳¨ *' : '׳©׳ ׳׳׳ *'}
               </Label>
               <div className="relative">
                 <User className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -385,7 +401,7 @@ export default function ClientForm() {
                   id="contact_name"
                   value={formData.contact_name}
                   onChange={(e) => handleChange('contact_name', e.target.value)}
-                  placeholder={formData.client_type === 'company' ? 'שם איש הקשר' : 'שם מלא'}
+                  placeholder={formData.client_type === 'company' ? '׳©׳ ׳׳™׳© ׳”׳§׳©׳¨' : '׳©׳ ׳׳׳'}
                   className={`pr-10 ${validationErrors.contact_name ? 'border-red-500' : validationSuccess.contact_name ? 'border-green-500' : ''}`}
                   required
                 />
@@ -402,7 +418,7 @@ export default function ClientForm() {
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">טלפון (וואטסאפ) *</Label>
+                <Label htmlFor="phone">׳˜׳׳₪׳•׳ (׳•׳•׳׳˜׳¡׳׳₪) *</Label>
                 <div className="relative">
                   <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <Input
@@ -432,14 +448,14 @@ export default function ClientForm() {
                       onClick={() => navigate(createPageUrl(`ClientDetails?id=${duplicateWarning.client.id}`))}
                       className="underline font-medium hover:text-amber-700"
                     >
-                      פתח לקוח קיים
+                      ׳₪׳×׳— ׳׳§׳•׳— ׳§׳™׳™׳
                     </button>
                   </div>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">אימייל</Label>
+                <Label htmlFor="email">׳׳™׳׳™׳™׳</Label>
                 <div className="relative">
                   <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <Input
@@ -469,7 +485,7 @@ export default function ClientForm() {
                       onClick={() => navigate(createPageUrl(`ClientDetails?id=${duplicateWarning.client.id}`))}
                       className="underline font-medium hover:text-amber-700"
                     >
-                      פתח לקוח קיים
+                      ׳₪׳×׳— ׳׳§׳•׳— ׳§׳™׳™׳
                     </button>
                   </div>
                 )}
@@ -477,7 +493,7 @@ export default function ClientForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tax_id">ח.פ / ת.ז (ללא מקפים)</Label>
+              <Label htmlFor="tax_id">׳—.׳₪ / ׳×.׳– (׳׳׳ ׳׳§׳₪׳™׳)</Label>
               <div className="relative">
                 <Building2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <Input
@@ -504,18 +520,18 @@ export default function ClientForm() {
         {/* Address */}
         <Card className="border-0 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg">כתובת</CardTitle>
+            <CardTitle className="text-lg">׳›׳×׳•׳‘׳×</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="address">כתובת</Label>
+              <Label htmlFor="address">׳›׳×׳•׳‘׳×</Label>
               <div className="relative">
                 <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <Input
                   id="address"
                   value={formData.address}
                   onChange={(e) => handleChange('address', e.target.value)}
-                  placeholder="רחוב ומספר בית"
+                  placeholder="׳¨׳—׳•׳‘ ׳•׳׳¡׳₪׳¨ ׳‘׳™׳×"
                   className="pr-10"
                 />
               </div>
@@ -523,17 +539,17 @@ export default function ClientForm() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="city">עיר</Label>
+                <Label htmlFor="city">׳¢׳™׳¨</Label>
                 <Input
                   id="city"
                   value={formData.city}
                   onChange={(e) => handleChange('city', e.target.value)}
-                  placeholder="שם העיר"
+                  placeholder="׳©׳ ׳”׳¢׳™׳¨"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="zip_code">מיקוד</Label>
+                <Label htmlFor="zip_code">׳׳™׳§׳•׳“</Label>
                 <Input
                   id="zip_code"
                   value={formData.zip_code}
@@ -549,13 +565,13 @@ export default function ClientForm() {
         {/* Notes */}
         <Card className="border-0 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg">הערות</CardTitle>
+            <CardTitle className="text-lg">׳”׳¢׳¨׳•׳×</CardTitle>
           </CardHeader>
           <CardContent>
             <Textarea
               value={formData.notes}
               onChange={(e) => handleChange('notes', e.target.value)}
-              placeholder="הערות על הלקוח..."
+              placeholder="׳”׳¢׳¨׳•׳× ׳¢׳ ׳”׳׳§׳•׳—..."
               rows={4}
             />
           </CardContent>
@@ -564,7 +580,7 @@ export default function ClientForm() {
         {/* Status */}
         <Card className="border-0 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg">סטטוס</CardTitle>
+            <CardTitle className="text-lg">׳¡׳˜׳˜׳•׳¡</CardTitle>
           </CardHeader>
           <CardContent>
             <Select value={formData.status} onValueChange={(v) => handleChange('status', v)}>
@@ -593,12 +609,12 @@ export default function ClientForm() {
             {saving ? (
               <>
                 <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                שומר...
+                ׳©׳•׳׳¨...
               </>
             ) : (
               <>
                 <Save className="w-4 h-4 ml-2" />
-                {isEditing ? 'שמור שינויים' : 'צור לקוח'}
+                {isEditing ? '׳©׳׳•׳¨ ׳©׳™׳ ׳•׳™׳™׳' : '׳¦׳•׳¨ ׳׳§׳•׳—'}
               </>
             )}
           </Button>
@@ -607,12 +623,13 @@ export default function ClientForm() {
             variant="outline"
             onClick={() => navigate(-1)}
           >
-            ביטול
+            ׳‘׳™׳˜׳•׳
           </Button>
         </div>
       </form>
     </div>
   );
 }
+
 
 

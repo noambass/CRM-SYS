@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '@/lib/AuthContext'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
   const { signInWithPassword, signUp } = useAuth()
@@ -7,6 +8,7 @@ export default function Login() {
   const [mode, setMode] = useState('login') // 'login' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -49,13 +51,24 @@ export default function Login() {
 
           <div>
             <label className="text-sm">סיסמה</label>
-            <input
-              className="w-full border rounded-md px-3 py-2"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <input
+                className="w-full border rounded-md px-3 py-2 pl-12"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                dir="ltr"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-800"
+                aria-label={showPassword ? 'הסתר סיסמה' : 'הצג סיסמה'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
           {error ? <div className="text-sm text-red-600">{error}</div> : null}
