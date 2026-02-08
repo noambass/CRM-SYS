@@ -8,7 +8,7 @@ import { Plus, Trash2, FileText } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 
-export default function LineItemsEditor({ items = [], onChange }) {
+export default function LineItemsEditor({ items = [], onChange, vatRate = 0.18 }) {
   const { user } = useAuth();
   const [jobTypes, setJobTypes] = useState([]);
   const [lineItems, setLineItems] = useState(items.length > 0 ? items.map(item => {
@@ -81,7 +81,7 @@ export default function LineItemsEditor({ items = [], onChange }) {
   };
 
   const getTotalPrice = () => {
-   return getTotalBeforeVat() * 1.18;
+    return getTotalBeforeVat() * (1 + (Number(vatRate) || 0));
   };
 
   return (
@@ -158,8 +158,8 @@ export default function LineItemsEditor({ items = [], onChange }) {
                 <span className="text-slate-700">₪{((parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0)).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">עם מע"מ (18%):</span>
-                <span className="font-semibold text-slate-800">₪{(((parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0)) * 1.18).toFixed(2)}</span>
+                <span className="text-slate-500">עם מע"מ ({Math.round((Number(vatRate) || 0) * 100)}%):</span>
+                <span className="font-semibold text-slate-800">₪{(((parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0)) * (1 + (Number(vatRate) || 0))).toFixed(2)}</span>
               </div>
             </div>
           </CardContent>
@@ -184,7 +184,7 @@ export default function LineItemsEditor({ items = [], onChange }) {
         <div className="flex justify-between items-center pt-2 border-t border-emerald-300">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-emerald-600" />
-            <span className="font-semibold text-slate-800">סה"כ כולל מע"מ 18%:</span>
+          <span className="font-semibold text-slate-800">סה"כ כולל מע"מ {Math.round((Number(vatRate) || 0) * 100)}%:</span>
           </div>
           <span className="text-2xl font-bold text-emerald-600">
             ₪{getTotalPrice().toFixed(2)}

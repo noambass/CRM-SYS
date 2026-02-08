@@ -4,7 +4,24 @@
 alter table public.jobs
   add column if not exists scheduled_at timestamptz,
   add column if not exists completed_at timestamptz,
-  add column if not exists updated_at timestamptz;
+  add column if not exists updated_at timestamptz,
+  add column if not exists address_place_id text,
+  add column if not exists address_lat double precision,
+  add column if not exists address_lng double precision,
+  add column if not exists resident_name text,
+  add column if not exists resident_phone text,
+  add column if not exists estimated_duration_minutes integer,
+  add column if not exists vat_rate numeric,
+  add column if not exists payment_status text,
+  add column if not exists paid_at timestamptz;
+
+-- Defaults (safe)
+alter table public.jobs
+  alter column estimated_duration_minutes set default 180;
+alter table public.jobs
+  alter column vat_rate set default 0.18;
+alter table public.jobs
+  alter column payment_status set default 'unpaid';
 
 -- 2) Ensure updated_at trigger function exists
 DO $$
@@ -86,6 +103,30 @@ BEGIN
       alter table public.jobs
       add constraint jobs_completed_at_required
       check ((status = 'done') = (completed_at is not null));
+    $sql$;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'jobs_payment_status_check'
+  ) THEN
+    EXECUTE $sql$
+      alter table public.jobs
+      add constraint jobs_payment_status_check
+      check (payment_status is null or payment_status in ('unpaid', 'paid'));
+    $sql$;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'jobs_vat_rate_check'
+  ) THEN
+    EXECUTE $sql$
+      alter table public.jobs
+      add constraint jobs_vat_rate_check
+      check (vat_rate is null or (vat_rate >= 0 and vat_rate <= 1));
     $sql$;
   END IF;
 END

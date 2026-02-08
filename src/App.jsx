@@ -7,6 +7,9 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import Login from '@/pages/Login';
+import JobForm from '@/pages/JobForm';
+import JobDetails from '@/pages/JobDetails';
+import ClientForm from '@/pages/ClientForm';
 
 
 const { Pages, Layout, mainPage } = pagesConfig;
@@ -16,6 +19,8 @@ const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
 const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
   : <>{children}</>;
+
+const EXCLUDED_PAGE_ROUTES = new Set(['JobForm', 'JobDetails', 'ClientForm']);
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isAuthenticated } = useAuth();
@@ -46,7 +51,41 @@ const AuthenticatedApp = () => {
           <MainPage />
         </LayoutWrapper>
       } />
-      {Object.entries(Pages).map(([path, Page]) => (
+      <Route
+        path="/jobs/new"
+        element={
+          <LayoutWrapper currentPageName="Jobs">
+            <JobForm />
+          </LayoutWrapper>
+        }
+      />
+      <Route
+        path="/jobs/:id"
+        element={
+          <LayoutWrapper currentPageName="Jobs">
+            <JobDetails />
+          </LayoutWrapper>
+        }
+      />
+      <Route
+        path="/clients/new"
+        element={
+          <LayoutWrapper currentPageName="Clients">
+            <ClientForm />
+          </LayoutWrapper>
+        }
+      />
+      <Route
+        path="/clients/:id"
+        element={
+          <LayoutWrapper currentPageName="Clients">
+            <ClientForm />
+          </LayoutWrapper>
+        }
+      />
+      {Object.entries(Pages)
+        .filter(([path]) => !EXCLUDED_PAGE_ROUTES.has(path))
+        .map(([path, Page]) => (
         <Route
           key={path}
           path={`/${path}`}

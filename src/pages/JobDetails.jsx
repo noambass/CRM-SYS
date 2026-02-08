@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
@@ -13,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { JobStatusBadge, PriorityBadge, InvoiceStatusBadge } from "@/components/ui/DynamicStatusBadge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -20,13 +22,21 @@ import EmptyState from "@/components/shared/EmptyState";
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 
+const DEFAULT_VAT_RATE = 0.18;
+const DEFAULT_ESTIMATED_MINUTES = 180;
+const BUFFER_MINUTES = 20;
+
+// Approx home base (Rova TAZ, Ashdod) – not critical precision for MVP
+const HOME_BASE = { lat: 31.79, lng: 34.65 };
+
 // Status actions removed - using dynamic status from AppConfig
 
 export default function JobDetails() {
   const navigate = useNavigate();
   const { user, isLoadingAuth } = useAuth();
+  const { id: routeId } = useParams();
   const urlParams = new URLSearchParams(window.location.search);
-  const jobId = urlParams.get('id');
+  const jobId = routeId || urlParams.get('id');
 
   const [job, setJob] = useState(null);
   const [client, setClient] = useState(null);
@@ -38,6 +48,14 @@ export default function JobDetails() {
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
+
+  // Payment
+  const [paymentStatus, setPaymentStatus] = useState('unpaid');
+
+  // Smart scheduling
+  const [smartOpen, setSmartOpen] = useState(false);
+  const [smartLoading, setSmartLoading] = useState(false);
+  const [smartSuggestions, setSmartSuggestions] = useState([]);
 
   useEffect(() => {
     if (jobId && user) {
@@ -97,6 +115,7 @@ export default function JobDetails() {
           scheduled_time: jobData.scheduled_time || (scheduledDate ? format(scheduledDate, 'HH:mm') : null),
           created_date: jobData.created_date || jobData.created_at
         });
+        setPaymentStatus(jobData.payment_status || 'unpaid');
         await loadAttachments(jobData.id);
         if (jobData.client_id) {
           const { data: clientData, error: clientError } = await supabase
@@ -135,6 +154,28 @@ export default function JobDetails() {
         .eq('owner_id', user.id);
       if (error) throw error;
       setJob(prev => ({ ...prev, ...updateData }));
+
+      // Business rule: private clients become "inactive" automatically after job completion
+      if (newStatus === 'done' && job?.client_id) {
+        try {
+          const { data: c, error: ce } = await supabase
+            .from('clients')
+            .select('id, client_type')
+            .eq('id', job.client_id)
+            .eq('owner_id', user.id)
+            .maybeSingle();
+          if (!ce && c?.client_type === 'private') {
+            await supabase
+              .from('clients')
+              .update({ status: 'inactive' })
+              .eq('id', c.id)
+              .eq('owner_id', user.id);
+          }
+        } catch (e) {
+          // Silent: completion should not fail because of client status
+          console.warn('Failed to auto-inactivate private client:', e);
+        }
+      }
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error('שגיאה בעדכון סטטוס', {
@@ -186,6 +227,192 @@ export default function JobDetails() {
     } finally {
       setUpdating(false);
     }
+  };
+
+  const updatePaymentStatus = async (nextStatus) => {
+    if (!user) return;
+    try {
+      setUpdating(true);
+      const update = { payment_status: nextStatus };
+      // Optional timestamp if column exists (safe to send even if ignored in schema)
+      if (nextStatus === 'paid') update.paid_at = new Date().toISOString();
+      const { error } = await supabase
+        .from('jobs')
+        .update(update)
+        .eq('id', jobId)
+        .eq('owner_id', user.id);
+      if (error) throw error;
+      setPaymentStatus(nextStatus);
+      setJob(prev => ({ ...prev, ...update }));
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      toast.error('שגיאה בעדכון סטטוס תשלום', { description: 'נסה שוב בעוד רגע', duration: 4000 });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const HOME_BASE = { lat: 31.7892, lng: 34.6486 }; // Approx. Ashdod (רובע ט"ז)
+  const WORKDAY_START = '07:00';
+  const WORKDAY_END = '20:00';
+  const BUFFER_MIN = 20;
+
+  const parseTimeToMinutes = (t) => {
+    const [hh, mm] = String(t || '00:00').split(':').map(Number);
+    return (hh || 0) * 60 + (mm || 0);
+  };
+
+  const minutesToTime = (m) => {
+    const hh = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  };
+
+  const routeDurationSeconds = async ({ origin, destination, departureIso }) => {
+    try {
+      const resp = await fetch('/api/route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ origin, destination, departureTime: departureIso }),
+      });
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      return Number(data?.durationSeconds) || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const getSmartSuggestions = async () => {
+    if (!user || !job) return;
+    if (!job.address_lat || !job.address_lng) {
+      toast.error('אין נתוני מיקום לעבודה הזו', {
+        description: 'כדי להשתמש בתזמון חכם, ערוך את העבודה ובחר כתובת מההשלמה האוטומטית של גוגל.',
+        duration: 6000
+      });
+      return;
+    }
+
+    setSmartLoading(true);
+    try {
+      const now = new Date();
+      const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const { data: scheduledJobs, error } = await supabase
+        .from('jobs')
+        .select('id,title,scheduled_at,scheduled_date,scheduled_time,estimated_duration_minutes,address_lat,address_lng')
+        .eq('owner_id', user.id)
+        .not('scheduled_at', 'is', null)
+        .gte('scheduled_at', now.toISOString())
+        .lte('scheduled_at', end.toISOString())
+        .neq('id', jobId);
+      if (error) throw error;
+
+      const durationMin = Number(job.estimated_duration_minutes) || 180;
+      const jobLoc = { lat: Number(job.address_lat), lng: Number(job.address_lng) };
+
+      const jobsByDay = new Map();
+      (scheduledJobs || []).forEach((j) => {
+        const d = new Date(j.scheduled_at);
+        const key = format(d, 'yyyy-MM-dd');
+        if (!jobsByDay.has(key)) jobsByDay.set(key, []);
+        jobsByDay.get(key).push(j);
+      });
+
+      const suggestions = [];
+      for (let i = 0; i < 7; i++) {
+        const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+        const dayKey = format(day, 'yyyy-MM-dd');
+        const dayJobs = (jobsByDay.get(dayKey) || []).slice().sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+
+        const dayStartMin = parseTimeToMinutes(WORKDAY_START);
+        const dayEndMin = parseTimeToMinutes(WORKDAY_END);
+
+        // Build timeline blocks
+        const blocks = dayJobs.map((j) => {
+          const start = parseTimeToMinutes(format(new Date(j.scheduled_at), 'HH:mm'));
+          const dur = Number(j.estimated_duration_minutes) || 180;
+          const endMin = start + dur;
+          return { ...j, startMin: start, endMin };
+        });
+
+        const candidates = [];
+        if (blocks.length === 0) {
+          candidates.push({ kind: 'home', prev: null, next: null, startMin: dayStartMin });
+        } else {
+          // before first
+          candidates.push({ kind: 'before', prev: null, next: blocks[0], startMin: dayStartMin });
+          // between
+          for (let b = 0; b < blocks.length - 1; b++) {
+            candidates.push({ kind: 'between', prev: blocks[b], next: blocks[b + 1] });
+          }
+          // after last
+          candidates.push({ kind: 'after', prev: blocks[blocks.length - 1], next: null });
+        }
+
+        for (const c of candidates) {
+          const prevLoc = c.prev?.address_lat && c.prev?.address_lng
+            ? { lat: Number(c.prev.address_lat), lng: Number(c.prev.address_lng) }
+            : HOME_BASE;
+          const nextLoc = c.next?.address_lat && c.next?.address_lng
+            ? { lat: Number(c.next.address_lat), lng: Number(c.next.address_lng) }
+            : null;
+
+          let startMin = c.startMin;
+          if (c.kind === 'between') {
+            startMin = (c.prev?.endMin || dayStartMin) + BUFFER_MIN;
+          }
+          if (c.kind === 'after') {
+            startMin = (c.prev?.endMin || dayStartMin) + BUFFER_MIN;
+          }
+
+          // route prev -> new (departure = day + startMin)
+          const depPrev = new Date(day);
+          depPrev.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
+          const prevDrive = await routeDurationSeconds({ origin: prevLoc, destination: jobLoc, departureIso: depPrev.toISOString() });
+          const prevDriveMin = Math.ceil((prevDrive || 0) / 60);
+          const adjustedStart = Math.max(dayStartMin, startMin + prevDriveMin);
+          const endMin = adjustedStart + durationMin;
+
+          // must fit workday
+          if (endMin > dayEndMin) continue;
+
+          // if there is next job, ensure we can reach it
+          let nextDriveMin = 0;
+          if (nextLoc && c.next?.startMin != null) {
+            const depNext = new Date(day);
+            depNext.setHours(Math.floor(endMin / 60), endMin % 60, 0, 0);
+            const nextDrive = await routeDurationSeconds({ origin: jobLoc, destination: nextLoc, departureIso: depNext.toISOString() });
+            nextDriveMin = Math.ceil((nextDrive || 0) / 60);
+            const latestFinish = (c.next.startMin || dayEndMin) - BUFFER_MIN;
+            if (endMin + nextDriveMin > latestFinish) continue;
+          }
+
+          const driveTotal = prevDriveMin + nextDriveMin;
+          suggestions.push({
+            date: dayKey,
+            time: minutesToTime(adjustedStart),
+            driveMinutes: driveTotal,
+            score: driveTotal * 1000 + adjustedStart,
+          });
+        }
+      }
+
+      suggestions.sort((a, b) => a.score - b.score);
+      setSmartSuggestions(suggestions.slice(0, 3));
+      setSmartOpen(true);
+    } catch (error) {
+      console.error('Error building smart suggestions:', error);
+      toast.error('שגיאה בחישוב תזמון חכם', { description: 'נסה שוב בעוד רגע', duration: 5000 });
+    } finally {
+      setSmartLoading(false);
+    }
+  };
+
+  const applySmartSuggestion = async (s) => {
+    setScheduledDate(s.date);
+    setScheduledTime(s.time);
+    setSmartOpen(false);
+    setIsEditingSchedule(true);
   };
 
   const handlePhotoUpload = async (e) => {
@@ -243,6 +470,13 @@ export default function JobDetails() {
   if (loading) return <LoadingSpinner />;
   if (!job) return <EmptyState icon={FileText} title="עבודה לא נמצאה" description="העבודה המבוקשת לא נמצאה במערכת" />;
 
+  const vatRate = Number(job.vat_rate);
+  const safeVatRate = Number.isFinite(vatRate) ? vatRate : 0.18;
+  const vatPct = Math.round(safeVatRate * 100);
+  const subtotal = Number(job.total_price) || 0;
+  const vatAmount = subtotal * safeVatRate;
+  const totalWithVat = subtotal + vatAmount;
+
   return (
     <div dir="rtl" className="p-4 lg:p-8 space-y-6 max-w-4xl mx-auto">
         {/* Created Date */}
@@ -281,6 +515,58 @@ export default function JobDetails() {
            <InvoiceStatusBadge status={job.invoice_status} />
          )}
        </div>
+
+      {/* Payment */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg">תשלום</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="text-sm text-slate-600">
+              סה"כ לתשלום: <span className="font-semibold text-slate-800">₪{totalWithVat.toFixed(2)}</span>
+              <span className="text-slate-500"> (כולל מע"מ {vatPct}%)</span>
+            </div>
+            <div className="w-full sm:w-56">
+              <Select value={paymentStatus} onValueChange={(v) => updatePaymentStatus(v)} disabled={updating}>
+                <SelectTrigger>
+                  <SelectValue placeholder="סטטוס תשלום" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unpaid">טרם שולם</SelectItem>
+                  <SelectItem value="paid">שולם</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={smartOpen} onOpenChange={setSmartOpen}>
+        <DialogContent className="sm:max-w-lg" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>תזמון חכם (7 ימים קדימה)</DialogTitle>
+          </DialogHeader>
+          {smartSuggestions.length === 0 ? (
+            <div className="text-sm text-slate-600">
+              לא נמצאו חלונות זמן מתאימים. נסה שוב לאחר שתזמן/תעדכן עבודות קיימות.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {smartSuggestions.map((s, idx) => (
+                <div key={idx} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50">
+                  <div>
+                    <div className="font-semibold text-slate-800">{format(new Date(s.date), 'dd/MM/yyyy')} • {s.time}</div>
+                    <div className="text-xs text-slate-500">נסיעה משוערת סביב: {s.driveMinutes} דק׳</div>
+                  </div>
+                  <Button onClick={() => applySmartSuggestion(s)} variant="outline">בחר</Button>
+                </div>
+              ))}
+              <div className="text-xs text-slate-500">* החישוב משתמש בנתוני עומסים (אם הוגדר מפתח Google Routes) או אומדן בסיסי.</div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Complete Job Action */}
       {job.status !== 'done' && (
@@ -359,6 +645,26 @@ export default function JobDetails() {
                 )}
               </div>
             )}
+
+            {(job.resident_phone || job.resident_name) && (
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <Avatar className="h-12 w-12">
+                  <AvatarFallback className="bg-amber-100 text-amber-700">
+                    {job.resident_name ? job.resident_name.charAt(0) : 'ד'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <p className="text-xs text-amber-700 font-medium mb-1">דייר בבית</p>
+                  {job.resident_name && <h4 className="font-semibold text-slate-800">{job.resident_name}</h4>}
+                  {job.resident_phone && <p className="text-sm text-slate-500" dir="ltr">{job.resident_phone}</p>}
+                </div>
+                {job.resident_phone && (
+                  <Button size="icon" variant="ghost" onClick={() => window.open(`tel:${job.resident_phone}`)}>
+                    <Phone className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -405,6 +711,14 @@ export default function JobDetails() {
                       )}
                   </p>
                 </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={getSmartSuggestions}
+                  disabled={smartLoading}
+                >
+                  {smartLoading ? 'מחפש…' : 'תזמון חכם'}
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
@@ -492,8 +806,8 @@ export default function JobDetails() {
                   <span className="font-semibold text-slate-800">₪{(Number(job.total_price) || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm font-medium text-emerald-700">סה״כ כולל מע"מ 18%</span>
-                  <span className="font-bold text-lg text-emerald-600">₪{((Number(job.total_price) || 0) * 1.18).toFixed(2)}</span>
+                  <span className="text-sm font-medium text-emerald-700">סה״כ כולל מע"מ {vatPct}%</span>
+                  <span className="font-bold text-lg text-emerald-600">₪{totalWithVat.toFixed(2)}</span>
                 </div>
               </div>
             )}
