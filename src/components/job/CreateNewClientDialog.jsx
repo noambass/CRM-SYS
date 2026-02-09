@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -116,7 +116,7 @@ export default function CreateNewClientDialog({ open, onOpenChange, onClientCrea
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="contact_name">שם איש קשר / שם *</Label>
+            <Label htmlFor="contact_name">שם איש קשר / שם מלא *</Label>
             <Input
               id="contact_name"
               value={formData.contact_name}

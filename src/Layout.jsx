@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import logo from '@/assets/logo.png';
 import { Toaster } from 'sonner';
-import { 
+import {
   Users, Briefcase, Settings, Menu, Home,
   LogOut, User, Plus, MapPin, Calendar as CalendarIcon
 } from 'lucide-react';
@@ -81,8 +81,8 @@ export default function Layout({ children, currentPageName }) {
             to={createPageUrl(item.page)}
             onClick={() => mobile && setMobileMenuOpen(false)}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-              isActive 
-                ? 'text-white shadow-lg' 
+              isActive
+                ? 'text-white shadow-lg'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
             style={isActive ? { backgroundColor: '#00214d' } : {}}
@@ -111,13 +111,13 @@ export default function Layout({ children, currentPageName }) {
         <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white border-l border-slate-200 px-4 py-6">
           {/* Logo */}
           <div className="flex items-center gap-3 px-4 mb-4">
-            <img 
+            <img
               src={logo}
-              alt="לוגו" 
+              alt="לוגו"
               className="h-12 w-auto"
             />
             <div>
-              <h1 className="text-lg font-bold" style={{ color: '#00214d' }}>עולם הציפוייים</h1>
+              <h1 className="text-lg font-bold" style={{ color: '#00214d' }}>עולם הציפויים</h1>
               <p className="text-xs text-slate-500">מערכת ניהול</p>
             </div>
           </div>
@@ -187,13 +187,13 @@ export default function Layout({ children, currentPageName }) {
             <div className="flex flex-col h-full bg-white">
               {/* Mobile Logo */}
               <div className="flex items-center gap-3 px-6 py-6 border-b border-slate-200">
-                <img 
+                <img
                   src={logo}
-                  alt="לוגו" 
+                  alt="לוגו"
                   className="h-10 w-auto"
                 />
                 <div>
-                  <h1 className="text-lg font-bold" style={{ color: '#00214d' }}>עולם הציפוייים</h1>
+                  <h1 className="text-lg font-bold" style={{ color: '#00214d' }}>עולם הציפויים</h1>
                   <p className="text-xs text-slate-500">מערכת ניהול</p>
                 </div>
               </div>
@@ -222,7 +222,7 @@ export default function Layout({ children, currentPageName }) {
         </Sheet>
 
         <div className="flex-1 flex items-center justify-center">
-          <h1 className="text-lg font-bold" style={{ color: '#00214d' }}>עולם הציפוייים</h1>
+          <h1 className="text-lg font-bold" style={{ color: '#00214d' }}>עולם הציפויים</h1>
         </div>
 
         {user && !isLoadingAuth && (

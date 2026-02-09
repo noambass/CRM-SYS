@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 
 // Lightweight Google Places Autocomplete input.
@@ -39,7 +39,7 @@ export default function GooglePlacesInput({
   value,
   onChangeText,
   onPlaceSelected,
-  placeholder = 'הקלד כתובת…',
+  placeholder = 'הקלד כתובת...',
 }) {
   const inputRef = useRef(null);
   const [enabled, setEnabled] = useState(false);
