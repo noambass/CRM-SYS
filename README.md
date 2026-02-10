@@ -15,3 +15,5 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 ## Migrations (manual)
 Run the SQL files in `supabase/` via Supabase SQL Editor. See `docs/` for post‑migration checks.
+
+1
