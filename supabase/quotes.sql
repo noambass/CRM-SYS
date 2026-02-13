@@ -2,7 +2,7 @@
 create table if not exists public.quotes (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null,
-  client_id uuid not null references public.clients(id) on delete set null,
+  client_id uuid references public.clients(id) on delete set null,
 
   client_name text,
   client_phone text,

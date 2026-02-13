@@ -59,8 +59,9 @@ export default function Dashboard() {
           .select('id, status')
           .eq('owner_id', user.id)
       ]);
-      if (clientsRes.error) throw clientsRes.error;
-      if (jobsRes.error) throw jobsRes.error;
+      if (clientsRes.error) console.warn('Clients query error:', clientsRes.error);
+      if (jobsRes.error) console.warn('Jobs query error:', jobsRes.error);
+      if (quotesRes.error) console.warn('Quotes query error:', quotesRes.error);
       const clients = clientsRes.data || [];
       const rawJobs = jobsRes.data || [];
       const allQuotes = quotesRes.data || [];

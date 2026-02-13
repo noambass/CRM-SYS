@@ -13,7 +13,7 @@ BEGIN
       create table public.quotes (
         id uuid primary key default gen_random_uuid(),
         owner_id uuid not null,
-        client_id uuid not null references public.clients(id) on delete set null,
+        client_id uuid references public.clients(id) on delete set null,
         client_name text,
         client_phone text,
         status text not null default 'draft',
@@ -142,3 +142,6 @@ $$;
 alter table public.jobs
   add column if not exists quote_id uuid references public.quotes(id) on delete set null,
   add column if not exists agreed_amount numeric;
+
+-- 8) Force PostgREST schema cache reload
+NOTIFY pgrst, 'reload schema';

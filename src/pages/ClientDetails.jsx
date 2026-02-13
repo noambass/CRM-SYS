@@ -65,8 +65,8 @@ export default function ClientDetails() {
             .eq('client_id', clientId)
             .order('created_at', { ascending: false }),
         ]);
-        if (jobsRes.error) throw jobsRes.error;
-        if (quotesRes.error) throw quotesRes.error;
+        if (jobsRes.error) console.warn('Jobs query error:', jobsRes.error);
+        if (quotesRes.error) console.warn('Quotes query error:', quotesRes.error);
         setJobs(jobsRes.data || []);
         setQuotes(quotesRes.data || []);
       } else {
