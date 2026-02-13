@@ -5,15 +5,17 @@ import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import {
   ArrowRight, Building2, User, Phone, Mail, MapPin, Edit,
-  Briefcase, Calendar, Plus, MessageCircle
+  Briefcase, Calendar, Plus, MessageCircle, FileText, Copy
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+import { Badge } from "@/components/ui/badge";
 import { ClientTypeBadge, JobStatusBadge, PriorityBadge } from "@/components/ui/DynamicStatusBadge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 
@@ -25,6 +27,8 @@ export default function ClientDetails() {
 
   const [client, setClient] = useState(null);
   const [jobs, setJobs] = useState([]);
+  const [quotes, setQuotes] = useState([]);
+  const [activeTab, setActiveTab] = useState('quotes');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,16 +51,27 @@ export default function ClientDetails() {
       if (error) throw error;
       setClient(data || null);
       if (data) {
-        const { data: jobsData, error: jobsError } = await supabase
-          .from('jobs')
-          .select('*')
-          .eq('owner_id', user.id)
-          .eq('client_id', clientId)
-          .order('created_at', { ascending: false });
-        if (jobsError) throw jobsError;
-        setJobs(jobsData || []);
+        const [jobsRes, quotesRes] = await Promise.all([
+          supabase
+            .from('jobs')
+            .select('*')
+            .eq('owner_id', user.id)
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('quotes')
+            .select('*')
+            .eq('owner_id', user.id)
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: false }),
+        ]);
+        if (jobsRes.error) throw jobsRes.error;
+        if (quotesRes.error) throw quotesRes.error;
+        setJobs(jobsRes.data || []);
+        setQuotes(quotesRes.data || []);
       } else {
         setJobs([]);
+        setQuotes([]);
       }
     } catch (error) {
       console.error('Error loading client:', error);
@@ -133,6 +148,14 @@ export default function ClientDetails() {
         >
           <MessageCircle className="w-5 h-5" />
           <span>WhatsApp</span>
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => navigate(createPageUrl(`QuoteForm?client_id=${client.id}`))}
+          className="h-auto py-4 flex-col gap-2"
+        >
+          <FileText className="w-5 h-5" />
+          <span>הצעה חדשה</span>
         </Button>
         <Button
           variant="outline"
@@ -213,60 +236,152 @@ export default function ClientDetails() {
         </CardContent>
       </Card>
 
-      {/* Jobs List */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Briefcase className="w-5 h-5" />
-            עבודות ({jobs.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {jobs.length === 0 ? (
-            <EmptyState
-              icon={Briefcase}
-              title="אין עבודות"
-              description="לא נוצרו עבודות עבור לקוח זה"
-              actionLabel="צור עבודה ראשונה"
-              onAction={() => navigate(createPageUrl(`JobForm?client_id=${client.id}`))}
-            />
-          ) : (
-            <div className="space-y-3">
-              {jobs.map((job) => (
-                <Card 
-                  key={job.id}
-                  className="border-0 shadow-sm hover:shadow-md transition-all cursor-pointer"
-                  onClick={() => navigate(createPageUrl(`JobDetails?id=${job.id}`))}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-slate-800">{job.title}</h4>
-                        {(job.address || job.city) && (
-                          <div className="text-slate-500 text-sm mt-1">
-                            {job.address}{job.city ? `, ${job.city}` : ''}
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-slate-200 pb-0">
+        {[
+          { id: 'quotes', label: `הצעות מחיר (${quotes.length})`, icon: FileText },
+          { id: 'jobs', label: `עבודות (${jobs.length})`, icon: Briefcase },
+          { id: 'notes', label: 'הערות', icon: Edit },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === tab.id
+                ? 'border-blue-600 text-blue-700'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'quotes' && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            {quotes.length === 0 ? (
+              <EmptyState
+                icon={FileText}
+                title="אין הצעות מחיר"
+                description="לא נוצרו הצעות מחיר עבור לקוח זה"
+                actionLabel="צור הצעה ראשונה"
+                onAction={() => navigate(createPageUrl(`QuoteForm?client_id=${client.id}`))}
+              />
+            ) : (
+              <div className="space-y-3">
+                {quotes.map((quote) => {
+                  const statusConfig = {
+                    draft: { label: 'טיוטה', color: '#64748b' },
+                    sent: { label: 'נשלחה', color: '#8b5cf6' },
+                    approved: { label: 'אושרה', color: '#10b981' },
+                    rejected: { label: 'נדחתה', color: '#ef4444' },
+                  };
+                  const cfg = statusConfig[quote.status] || { label: quote.status, color: '#64748b' };
+                  return (
+                    <Card
+                      key={quote.id}
+                      className="border-0 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                      onClick={() => navigate(createPageUrl(`QuoteDetails?id=${quote.id}`))}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="text-sm text-slate-400">
+                              {format(new Date(quote.created_at), 'dd/MM/yyyy', { locale: he })}
+                            </p>
+                            {quote.notes && (
+                              <p className="text-sm text-slate-600 mt-1 truncate">{quote.notes}</p>
+                            )}
                           </div>
-                        )}
-                        {job.scheduled_date && (
-                          <div className="flex items-center gap-2 mt-1 text-slate-500 text-sm">
-                            <Calendar className="w-4 h-4" />
-                            <span>{format(new Date(job.scheduled_date), 'dd/MM/yyyy', { locale: he })}</span>
-                            {job.scheduled_time && <span>• {job.scheduled_time}</span>}
+                          <div className="flex flex-col items-end gap-2 mr-4">
+                            <Badge
+                              variant="outline"
+                              style={{ backgroundColor: `${cfg.color}20`, color: cfg.color, borderColor: cfg.color }}
+                              className="font-medium"
+                            >
+                              {cfg.label}
+                            </Badge>
+                            <span className="font-bold text-slate-800">
+                              {Number(quote.total).toLocaleString('he-IL', { minimumFractionDigits: 2 })} &#8362;
+                            </span>
                           </div>
-                        )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 'jobs' && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            {jobs.length === 0 ? (
+              <EmptyState
+                icon={Briefcase}
+                title="אין עבודות"
+                description="לא נוצרו עבודות עבור לקוח זה"
+                actionLabel="צור עבודה ראשונה"
+                onAction={() => navigate(createPageUrl(`JobForm?client_id=${client.id}`))}
+              />
+            ) : (
+              <div className="space-y-3">
+                {jobs.map((job) => (
+                  <Card
+                    key={job.id}
+                    className="border-0 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                    onClick={() => navigate(createPageUrl(`JobDetails?id=${job.id}`))}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-slate-800">{job.title}</h4>
+                          {(job.address || job.city) && (
+                            <div className="text-slate-500 text-sm mt-1">
+                              {job.address}{job.city ? `, ${job.city}` : ''}
+                            </div>
+                          )}
+                          {job.scheduled_date && (
+                            <div className="flex items-center gap-2 mt-1 text-slate-500 text-sm">
+                              <Calendar className="w-4 h-4" />
+                              <span>{format(new Date(job.scheduled_date), 'dd/MM/yyyy', { locale: he })}</span>
+                              {job.scheduled_time && <span>• {job.scheduled_time}</span>}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <JobStatusBadge status={job.status} />
+                          <PriorityBadge priority={job.priority} />
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <JobStatusBadge status={job.status} />
-                        <PriorityBadge priority={job.priority} />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 'notes' && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            {client.notes ? (
+              <div className="p-4 bg-slate-50 rounded-xl">
+                <p className="text-slate-700 whitespace-pre-wrap">{client.notes}</p>
+              </div>
+            ) : (
+              <p className="text-slate-500 text-center py-6">אין הערות פנימיות</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

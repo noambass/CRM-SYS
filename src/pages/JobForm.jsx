@@ -82,6 +82,8 @@ export default function JobForm() {
   const [showAdditionalContact, setShowAdditionalContact] = useState(false);
   const [contactErrors, setContactErrors] = useState({});
 
+  const [isFromQuote, setIsFromQuote] = useState(false);
+
   const [formData, setFormData] = useState({
     client_id: preselectedClientId || '',
     client_name: '',
@@ -90,10 +92,10 @@ export default function JobForm() {
     contact_phone: '',
     primary_contact_name: '',
     primary_contact_phone: '',
-    title: '',
+    title: 'ציפוי אמבטיה',
     description: '',
     service_type: '',
-    status: JOB_STATUSES.QUOTE,
+    status: JOB_STATUSES.WAITING_SCHEDULE,
     priority: 'normal',
     address: '',
     city: '',
@@ -108,6 +110,7 @@ export default function JobForm() {
     assigned_to_name: '',
     notes: '',
     internal_notes: '',
+    agreed_amount: '',
   });
 
   useEffect(() => {
@@ -178,6 +181,10 @@ export default function JobForm() {
         if (jobData) {
           const scheduledDate = jobData.scheduled_at ? new Date(jobData.scheduled_at) : null;
 
+          if (jobData.quote_id) {
+            setIsFromQuote(true);
+          }
+
           setFormData({
             client_id: jobData.client_id || '',
             client_name: jobData.client_name || '',
@@ -189,7 +196,7 @@ export default function JobForm() {
             title: jobData.title || '',
             description: jobData.description || '',
             service_type: jobData.service_type || '',
-            status: jobData.status || JOB_STATUSES.QUOTE,
+            status: jobData.status || JOB_STATUSES.WAITING_SCHEDULE,
             priority: jobData.priority || 'normal',
             address: jobData.address || '',
             city: jobData.city || '',
@@ -204,6 +211,7 @@ export default function JobForm() {
             assigned_to_name: jobData.assigned_to_name || '',
             notes: jobData.notes || '',
             internal_notes: jobData.internal_notes || '',
+            agreed_amount: jobData.agreed_amount != null ? String(jobData.agreed_amount) : '',
           });
         }
       } else if (preselectedClientId) {
@@ -306,6 +314,7 @@ export default function JobForm() {
       }
 
       const submitData = { ...formData };
+      submitData.agreed_amount = submitData.agreed_amount ? Number(submitData.agreed_amount) : null;
 
       /* Auto-suggest status change when scheduling */
       if ((formData.scheduled_date && formData.scheduled_time) &&
@@ -434,6 +443,17 @@ export default function JobForm() {
           </p>
         </div>
       </div>
+
+      {isFromQuote && isEditing && (
+        <Card className="border-0 shadow-sm bg-amber-50 border-l-4 border-l-amber-500 mb-6">
+          <CardContent className="p-4">
+            <p className="text-amber-800 font-medium">עריכה מוגבלת</p>
+            <p className="text-amber-700 text-sm mt-1">
+              עבודה שנוצרה מהצעת מחיר ניתנת לעדכון סטטוס בלבד. לא ניתן לערוך סכום או פרטים מהותיים.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Client Selection */}
@@ -705,6 +725,30 @@ export default function JobForm() {
             )}
           </CardContent>
         </Card>
+
+        {/* Agreed Amount */}
+        {!isFromQuote && (
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">סכום שסוכם</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="agreed_amount">סכום (₪)</Label>
+                <Input
+                  id="agreed_amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.agreed_amount}
+                  onChange={(e) => handleChange('agreed_amount', e.target.value)}
+                  placeholder="הזן סכום..."
+                  dir="ltr"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Schedule */}
         <Card className="border-0 shadow-sm">

@@ -491,13 +491,24 @@ export default function JobDetails() {
           <h1 className="text-2xl font-bold text-slate-800">{job.title}</h1>
           <p className="text-slate-500 mt-1">{job.client_name}</p>
         </div>
-        <Button 
-          variant="outline"
-          onClick={() => navigate(createPageUrl(`JobForm?id=${job.id}`))}
-        >
-          <Edit className="w-4 h-4 ml-2" />
-          עריכה
-        </Button>
+        {!job.quote_id ? (
+          <Button
+            variant="outline"
+            onClick={() => navigate(createPageUrl(`JobForm?id=${job.id}`))}
+          >
+            <Edit className="w-4 h-4 ml-2" />
+            עריכה
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            onClick={() => navigate(createPageUrl(`JobForm?id=${job.id}`))}
+            className="text-amber-600 border-amber-300"
+          >
+            <Edit className="w-4 h-4 ml-2" />
+            עריכה מוגבלת
+          </Button>
+        )}
       </div>
 
       {/* Status & Priority */}
@@ -508,6 +519,52 @@ export default function JobDetails() {
            <InvoiceStatusBadge status={job.invoice_status} />
          )}
        </div>
+
+      {/* Amount */}
+      {(job.agreed_amount != null || job.quote_id) && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-500">
+                {job.quote_id ? 'סכום מהצעת מחיר (נעול)' : 'סכום שסוכם'}
+              </p>
+              <p className="text-2xl font-bold text-slate-800">
+                {Number(job.agreed_amount || 0).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} &#8362;
+              </p>
+            </div>
+            {job.quote_id && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(createPageUrl(`QuoteDetails?id=${job.quote_id}`))}
+                className="text-blue-600 border-blue-300"
+              >
+                <FileText className="w-4 h-4 ml-1" />
+                פתח הצעת מחיר קשורה
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Warranty */}
+      {job.warranty !== undefined && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-sm text-slate-500 mb-1">אחריות</p>
+            {job.warranty ? (
+              <p className="font-medium text-emerald-700">יש אחריות</p>
+            ) : (
+              <>
+                <p className="font-medium text-red-600">אין אחריות</p>
+                {job.warranty_note && (
+                  <p className="text-sm text-slate-600 mt-1">{job.warranty_note}</p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
 
       <Dialog open={smartOpen} onOpenChange={setSmartOpen}>

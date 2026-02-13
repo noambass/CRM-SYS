@@ -5,7 +5,7 @@ import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import {
   Users, Briefcase, TrendingUp, Calendar,
-  Clock, CheckCircle, AlertCircle, ArrowUpRight, Plus } from
+  Clock, CheckCircle, AlertCircle, ArrowUpRight, Plus, FileText } from
 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
      totalClients: 0,
      totalJobs: 0,
+     openQuotes: 0,
      quoteJobs: 0,
      waitingScheduleJobs: 0,
      waitingExecutionJobs: 0,
@@ -44,7 +45,7 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     if (!user) return;
     try {
-      const [clientsRes, jobsRes] = await Promise.all([
+      const [clientsRes, jobsRes, quotesRes] = await Promise.all([
         supabase
           .from('clients')
           .select('*')
@@ -54,12 +55,18 @@ export default function Dashboard() {
           .select('*')
           .eq('owner_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(100)
+          .limit(100),
+        supabase
+          .from('quotes')
+          .select('id, status')
+          .eq('owner_id', user.id)
       ]);
       if (clientsRes.error) throw clientsRes.error;
       if (jobsRes.error) throw jobsRes.error;
       const clients = clientsRes.data || [];
       const rawJobs = jobsRes.data || [];
+      const allQuotes = quotesRes.data || [];
+      const openQuotesCount = allQuotes.filter(q => ['draft', 'sent', 'approved'].includes(q.status)).length;
 
       const jobs = rawJobs.map((job) => {
         if (job.scheduled_at) {
@@ -106,6 +113,7 @@ export default function Dashboard() {
       setStats({
         totalClients: clients.length,
         totalJobs: jobs.length,
+        openQuotes: openQuotesCount,
         quoteJobs: quoteJobs.length,
         waitingScheduleJobs: waitingScheduleJobs.length,
         waitingExecutionJobs: waitingExecutionJobs.length,
@@ -172,10 +180,16 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
         <StatCard
-          title="הצעות מחיר"
-          value={stats.quoteJobs}
-          icon={Briefcase}
-          color="bg-indigo-500" />
+          title="לקוחות"
+          value={stats.totalClients}
+          icon={Users}
+          color="bg-teal-500" />
+
+        <StatCard
+          title="הצעות פתוחות"
+          value={stats.openQuotes}
+          icon={FileText}
+          color="bg-violet-500" />
 
         <StatCard
           title="ממתין לתזמון"
@@ -196,18 +210,18 @@ export default function Dashboard() {
           color="bg-emerald-500" />
       </div>
 
-      {/* Summary Stats */}
+      {/* Open Jobs = all except done */}
       <div className="grid grid-cols-2 gap-2 lg:gap-4">
         <StatCard
-          title="סה״כ לקוחות"
-          value={stats.totalClients}
-          icon={Users}
-          color="bg-teal-500" />
+          title="עבודות פתוחות"
+          value={stats.quoteJobs + stats.waitingScheduleJobs + stats.waitingExecutionJobs}
+          icon={Briefcase}
+          color="bg-orange-500" />
         <StatCard
-          title="סה״כ עבודות"
-          value={stats.totalJobs}
-          icon={Calendar}
-          color="bg-purple-500" />
+          title="עבודות שבוצעו"
+          value={stats.doneJobs}
+          icon={CheckCircle}
+          color="bg-emerald-500" />
       </div>
 
           {/* Weekly Calendar */}
@@ -427,14 +441,20 @@ export default function Dashboard() {
               <h3 className="text-xl font-bold">פעולות מהירות</h3>
               <p className="text-emerald-100 mt-1">צור לקוח או עבודה חדשה במהירות</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
               <Button
                 onClick={() => navigate(createPageUrl('ClientForm'))}
                 variant="secondary"
                 className="bg-white/20 hover:bg-white/30 text-white border-0">
-
                 <Users className="w-4 h-4 ml-2" />
                 לקוח חדש
+              </Button>
+              <Button
+                onClick={() => navigate(createPageUrl('QuoteForm'))}
+                variant="secondary"
+                className="bg-white/20 hover:bg-white/30 text-white border-0">
+                <FileText className="w-4 h-4 ml-2" />
+                הצעה חדשה
               </Button>
               <Button
                 onClick={() => navigate(createPageUrl('JobForm'))}

@@ -248,6 +248,31 @@ export function ClientTypeBadge({ type }) {
   );
 }
 
+const defaultQuoteStatuses = {
+  draft: { label: 'טיוטה', color: '#64748b' },
+  sent: { label: 'נשלחה', color: '#8b5cf6' },
+  approved: { label: 'אושרה', color: '#10b981' },
+  rejected: { label: 'נדחתה', color: '#ef4444' },
+};
+
+export function QuoteStatusBadge({ status }) {
+  const statusConfig = defaultQuoteStatuses[status] || { label: status, color: '#64748b' };
+
+  return (
+    <Badge
+      variant="outline"
+      style={{
+        backgroundColor: `${statusConfig.color}20`,
+        color: statusConfig.color,
+        borderColor: statusConfig.color
+      }}
+      className="font-medium"
+    >
+      {statusConfig.label}
+    </Badge>
+  );
+}
+
 // Clear cache function for when configs are updated
 export function clearConfigCache() {
   cachedConfigsByUser.clear();
