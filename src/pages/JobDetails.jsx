@@ -5,9 +5,9 @@ import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from 'sonner';
 import { uploadJobAttachment, listJobAttachments, getJobAttachmentSignedUrl } from '@/lib/storage/storageProvider';
-import { 
+import {
   ArrowRight, MapPin, Calendar, User, Edit, Phone,
-  Camera, FileText, CheckCircle, Loader2, Image
+  Camera, FileText, CheckCircle, Loader2, Image, MessageCircle, Navigation
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -470,13 +470,6 @@ export default function JobDetails() {
   if (loading) return <LoadingSpinner />;
   if (!job) return <EmptyState icon={FileText} title="עבודה לא נמצאה" description="העבודה המבוקשת לא נמצאה במערכת" />;
 
-  const vatRate = Number(job.vat_rate);
-  const safeVatRate = Number.isFinite(vatRate) ? vatRate : 0.18;
-  const vatPct = Math.round(safeVatRate * 100);
-  const subtotal = Number(job.total_price) || 0;
-  const vatAmount = subtotal * safeVatRate;
-  const totalWithVat = subtotal + vatAmount;
-
   return (
     <div dir="rtl" className="p-4 lg:p-8 space-y-6 max-w-4xl mx-auto">
         {/* Created Date */}
@@ -516,31 +509,6 @@ export default function JobDetails() {
          )}
        </div>
 
-      {/* Payment */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg">תשלום</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="text-sm text-slate-600">
-              סה"כ לתשלום: <span className="font-semibold text-slate-800">₪{totalWithVat.toFixed(2)}</span>
-              <span className="text-slate-500"> (כולל מע"מ {vatPct}%)</span>
-            </div>
-            <div className="w-full sm:w-56">
-              <Select value={paymentStatus} onValueChange={(v) => updatePaymentStatus(v)} disabled={updating}>
-                <SelectTrigger>
-                  <SelectValue placeholder="סטטוס תשלום" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unpaid">טרם שולם</SelectItem>
-                  <SelectItem value="paid">שולם</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <Dialog open={smartOpen} onOpenChange={setSmartOpen}>
         <DialogContent className="sm:max-w-lg" dir="rtl">
@@ -608,8 +576,20 @@ export default function JobDetails() {
                 <h4 className="font-semibold text-slate-800">{job.client_name}</h4>
                 <p className="text-sm text-slate-500" dir="ltr">{job.client_phone || client.phone}</p>
               </div>
-              <Button 
-                size="icon" 
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const phone = (job.client_phone || client.phone || '').replace(/\D/g, '');
+                  window.open(`https://wa.me/${phone}`, '_blank');
+                }}
+                className="text-green-600 hover:text-green-700"
+              >
+                <MessageCircle className="w-4 h-4" />
+              </Button>
+              <Button
+                size="icon"
                 variant="ghost"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -646,25 +626,6 @@ export default function JobDetails() {
               </div>
             )}
 
-            {(job.resident_phone || job.resident_name) && (
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-amber-100 text-amber-700">
-                    {job.resident_name ? job.resident_name.charAt(0) : 'ד'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <p className="text-xs text-amber-700 font-medium mb-1">דייר בבית</p>
-                  {job.resident_name && <h4 className="font-semibold text-slate-800">{job.resident_name}</h4>}
-                  {job.resident_phone && <p className="text-sm text-slate-500" dir="ltr">{job.resident_phone}</p>}
-                </div>
-                {job.resident_phone && (
-                  <Button size="icon" variant="ghost" onClick={() => window.open(`tel:${job.resident_phone}`)}>
-                    <Phone className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
@@ -691,6 +652,22 @@ export default function JobDetails() {
                 <p className="text-sm text-slate-500">כתובת</p>
                 <p className="font-medium text-slate-800">{job.address}{job.city ? `, ${job.city}` : ''}</p>
               </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const addr = encodeURIComponent(`${job.address || ''}${job.city ? `, ${job.city}` : ''}`);
+                  if (job.address_lat && job.address_lng) {
+                    window.open(`https://waze.com/ul?ll=${job.address_lat},${job.address_lng}&navigate=yes`, '_blank');
+                  } else {
+                    window.open(`https://waze.com/ul?q=${addr}&navigate=yes`, '_blank');
+                  }
+                }}
+                className="text-blue-600"
+              >
+                <Navigation className="w-4 h-4 ml-1" />
+                נווט
+              </Button>
             </div>
 
             {!isEditingSchedule ? (
@@ -783,34 +760,6 @@ export default function JobDetails() {
               </div>
             )}
 
-            {/* DB impact: none (display formatting only; uses existing line_items/total_price fields). */}
-            {job.line_items && job.line_items.length > 0 && (
-              <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                <p className="text-sm text-emerald-700 font-medium mb-3">פרטי עבודה ומחיר</p>
-                <div className="space-y-2">
-                  {job.line_items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-slate-800">{item.description}</p>
-                        <p className="text-xs text-slate-500">כמות: {item.quantity}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-slate-800">₪{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2)}</p>
-                        <p className="text-xs text-slate-500">₪{(Number(item.price) || 0).toFixed(2)} ליח'</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 pt-3 border-t border-emerald-300 flex justify-between">
-                  <span className="text-sm text-slate-600">לפני מע"מ</span>
-                  <span className="font-semibold text-slate-800">₪{(Number(job.total_price) || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium text-emerald-700">סה״כ כולל מע"מ {vatPct}%</span>
-                  <span className="font-bold text-lg text-emerald-600">₪{totalWithVat.toFixed(2)}</span>
-                </div>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>

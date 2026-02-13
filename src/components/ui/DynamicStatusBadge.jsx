@@ -8,15 +8,7 @@ const defaultJobStatuses = {
   quote: { label: 'הצעת מחיר', color: '#6366f1' },
   waiting_schedule: { label: 'ממתין לתזמון', color: '#f59e0b' },
   waiting_execution: { label: 'ממתין לביצוע', color: '#3b82f6' },
-  done: { label: 'הושלם', color: '#10b981' },
-  in_progress: { label: 'בביצוע', color: '#8b5cf6' },
-  completed: { label: 'הושלם', color: '#10b981' },
-  cancelled: { label: 'בוטל', color: '#64748b' },
-  // Legacy statuses for backward compatibility
-  new: { label: 'חדש', color: '#3b82f6' },
-  scheduled: { label: 'מתוזמן', color: '#8b5cf6' },
-  on_the_way: { label: 'בדרך', color: '#06b6d4' },
-  pending_payment: { label: 'ממתין לתשלום', color: '#f97316' },
+  done: { label: 'הושלם', color: '#10b981' }
 };
 
 const defaultJobPriorities = {

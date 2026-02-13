@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
-import { 
+import {
   ArrowRight, Building2, User, Phone, Mail, MapPin, Edit,
-  Briefcase, Calendar, Plus
+  Briefcase, Calendar, Plus, MessageCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -114,8 +114,8 @@ export default function ClientDetails() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <Button 
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Button
           variant="outline"
           onClick={() => window.open(`tel:${client.phone}`)}
           className="h-auto py-4 flex-col gap-2"
@@ -123,7 +123,18 @@ export default function ClientDetails() {
           <Phone className="w-5 h-5" />
           <span>התקשר</span>
         </Button>
-        <Button 
+        <Button
+          variant="outline"
+          onClick={() => {
+            const phone = (client.phone || '').replace(/\D/g, '');
+            window.open(`https://wa.me/${phone}`, '_blank');
+          }}
+          className="h-auto py-4 flex-col gap-2 text-green-600 hover:text-green-700"
+        >
+          <MessageCircle className="w-5 h-5" />
+          <span>WhatsApp</span>
+        </Button>
+        <Button
           variant="outline"
           onClick={() => navigate(createPageUrl(`JobForm?client_id=${client.id}`))}
           className="h-auto py-4 flex-col gap-2"
@@ -132,7 +143,7 @@ export default function ClientDetails() {
           <span>עבודה חדשה</span>
         </Button>
         {client.email && (
-          <Button 
+          <Button
             variant="outline"
             onClick={() => window.open(`mailto:${client.email}`)}
             className="h-auto py-4 flex-col gap-2"

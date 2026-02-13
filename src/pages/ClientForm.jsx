@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { createPageUrl } from '@/utils';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
@@ -15,6 +16,7 @@ import {   Select,   SelectContent,   SelectItem,   SelectTrigger,   SelectValue
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
  export default function ClientForm() {   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, isLoadingAuth } = useAuth();
   const { id: routeId } = useParams();
   const urlParams = new URLSearchParams(window.location.search);
@@ -117,7 +119,9 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
       } else {         const { data: newClient, error } = await supabase           .from('clients')           .insert([{ ...submitData, owner_id: user.id }])           .select('id')           .single();
          if (error) throw error;
         toast.success('? הלקוח נוצר בהצלחה', {           description: `${submitData.client_type === 'company' ? submitData.company_name : submitData.contact_name} נוסף למערכת`,           duration: 5000,           action: {             label: 'צור עבודה',             onClick: () => navigate(createPageUrl(`JobForm?client_id=${newClient?.id}`))           }         });
-      }        navigate(createPageUrl('Clients'));
+      }        queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      navigate(createPageUrl('Clients'));
     } catch (error) {       console.error('Error saving client:', error);
       toast.error('? שגיאה בשמירה', {         description: 'אירעה שגיאה בשמירת הלקוח. נסה שוב',         duration: 6000       });
     } finally {       setSaving(false);

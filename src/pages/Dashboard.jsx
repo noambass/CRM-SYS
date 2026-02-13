@@ -24,7 +24,10 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
      totalClients: 0,
      totalJobs: 0,
-     pendingJobs: 0,
+     quoteJobs: 0,
+     waitingScheduleJobs: 0,
+     waitingExecutionJobs: 0,
+     doneJobs: 0,
      completedToday: 0
    });
    const [recentJobs, setRecentJobs] = useState([]);
@@ -83,7 +86,10 @@ export default function Dashboard() {
         const scheduledDate = j.scheduled_date || getDateOnly(j.scheduled_at);
         return scheduledDate === today;
       });
-      const pendingJobs = jobs.filter((j) => ['quote', 'waiting_schedule', 'waiting_execution'].includes(j.status));
+      const quoteJobs = jobs.filter((j) => j.status === 'quote');
+      const waitingScheduleJobs = jobs.filter((j) => j.status === 'waiting_schedule');
+      const waitingExecutionJobs = jobs.filter((j) => j.status === 'waiting_execution');
+      const doneJobs = jobs.filter((j) => j.status === 'done');
       const completedToday = jobs.filter((j) => {
         const completedDate = getDateOnly(j.completed_at || j.completed_date);
         return j.status === 'done' && completedDate === today;
@@ -100,7 +106,10 @@ export default function Dashboard() {
       setStats({
         totalClients: clients.length,
         totalJobs: jobs.length,
-        pendingJobs: pendingJobs.length,
+        quoteJobs: quoteJobs.length,
+        waitingScheduleJobs: waitingScheduleJobs.length,
+        waitingExecutionJobs: waitingExecutionJobs.length,
+        doneJobs: doneJobs.length,
         completedToday: completedToday.length
       });
 
@@ -163,30 +172,43 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
         <StatCard
-          title="סה״כ לקוחות"
-          value={stats.totalClients}
-          icon={Users}
-          color="bg-blue-500" />
+          title="הצעות מחיר"
+          value={stats.quoteJobs}
+          icon={Briefcase}
+          color="bg-indigo-500" />
 
         <StatCard
-          title="עבודות פעילות"
-          value={stats.pendingJobs}
-          icon={Briefcase}
+          title="ממתין לתזמון"
+          value={stats.waitingScheduleJobs}
+          icon={Clock}
           color="bg-amber-500" />
 
         <StatCard
-          title="הושלמו היום"
-          value={stats.completedToday}
+          title="ממתין לביצוע"
+          value={stats.waitingExecutionJobs}
+          icon={AlertCircle}
+          color="bg-blue-500" />
+
+        <StatCard
+          title="בוצע"
+          value={stats.doneJobs}
           icon={CheckCircle}
           color="bg-emerald-500" />
+      </div>
 
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 gap-2 lg:gap-4">
+        <StatCard
+          title="סה״כ לקוחות"
+          value={stats.totalClients}
+          icon={Users}
+          color="bg-teal-500" />
         <StatCard
           title="סה״כ עבודות"
           value={stats.totalJobs}
           icon={Calendar}
           color="bg-purple-500" />
-
-          </div>
+      </div>
 
           {/* Weekly Calendar */}
           <WeeklyCalendar />
