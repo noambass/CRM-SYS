@@ -95,7 +95,7 @@ export default function Dashboard() {
       const pendingJobs = jobs.filter((j) => j.status !== 'done');
       const doneJobs = jobs.filter((j) => j.status === 'done');
 
-      // Monthly revenue: sum of agreed_amount for jobs completed this month
+      // Monthly revenue: sum of agreed_amount (including 18% VAT) for jobs completed this month
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthlyRevenue = doneJobs
@@ -103,7 +103,7 @@ export default function Dashboard() {
           const completedDate = j.completed_at || j.completed_date;
           return completedDate && new Date(completedDate) >= monthStart;
         })
-        .reduce((sum, j) => sum + (Number(j.agreed_amount) || 0), 0);
+        .reduce((sum, j) => sum + (Number(j.agreed_amount) || 0) * 1.18, 0);
 
       const unscheduledJobsList = jobs.filter((j) => {
         const scheduledDate = j.scheduled_date || getDateOnly(j.scheduled_at);

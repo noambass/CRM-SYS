@@ -304,9 +304,12 @@ export default function ClientDetails() {
                             >
                               {cfg.label}
                             </Badge>
-                            <span className="font-bold text-slate-800">
-                              {Number(quote.total).toLocaleString('he-IL', { minimumFractionDigits: 2 })} &#8362;
-                            </span>
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="text-xs text-slate-500">כולל מע״מ</span>
+                              <span className="font-bold text-slate-800" dir="ltr">
+                                {(Number(quote.total) * 1.18).toLocaleString('he-IL', { minimumFractionDigits: 2 })} &#8362;
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </CardContent>

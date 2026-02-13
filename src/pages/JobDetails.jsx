@@ -493,15 +493,24 @@ export default function JobDetails() {
       {/* Amount */}
       {(job.agreed_amount != null || job.quote_id) && (
         <Card className="border-0 shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">
-                {job.quote_id ? 'סכום מהצעת מחיר (נעול)' : 'סכום שסוכם'}
-              </p>
-              <p className="text-2xl font-bold text-slate-800">
-                {Number(job.agreed_amount || 0).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} &#8362;
-              </p>
-            </div>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-slate-500">
+                  {job.quote_id ? 'סכום מהצעת מחיר (נעול)' : 'סכום שסוכם'}
+                </p>
+                <div className="space-y-1 mt-2">
+                  <p className="text-sm text-slate-600" dir="ltr">
+                    טרם מע״מ: {Number(job.agreed_amount || 0).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                  </p>
+                  <p className="text-sm text-slate-600" dir="ltr">
+                    מע״מ (18%): {(Number(job.agreed_amount || 0) * 0.18).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                  </p>
+                  <p className="text-2xl font-bold text-slate-800 pt-1" dir="ltr">
+                    סה״כ: {(Number(job.agreed_amount || 0) * 1.18).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                  </p>
+                </div>
+              </div>
             {job.quote_id && (
               <Button
                 variant="outline"

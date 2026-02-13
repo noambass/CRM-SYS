@@ -309,11 +309,25 @@ export default function QuoteDetails() {
               })}
 
               {/* Total */}
-              <div className="flex items-center justify-between p-4 bg-slate-800 text-white rounded-xl mt-4">
-                <span className="text-lg font-bold">סה״כ הצעה:</span>
-                <span className="text-2xl font-bold" dir="ltr">
-                  {Number(quote.total).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} &#8362;
-                </span>
+              <div className="space-y-3 p-4 bg-slate-800 text-white rounded-xl mt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">סכום טרם מע״מ:</span>
+                  <span className="font-medium" dir="ltr">
+                    {Number(quote.total).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} &#8362;
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">מע״מ (18%):</span>
+                  <span className="font-medium" dir="ltr">
+                    {(Number(quote.total) * 0.18).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} &#8362;
+                  </span>
+                </div>
+                <div className="border-t border-white/20 pt-3 flex items-center justify-between">
+                  <span className="text-lg font-bold">סה״כ הצעה:</span>
+                  <span className="text-2xl font-bold" dir="ltr">
+                    {(Number(quote.total) * 1.18).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} &#8362;
+                  </span>
+                </div>
               </div>
             </div>
           )}

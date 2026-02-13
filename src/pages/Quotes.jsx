@@ -208,9 +208,12 @@ export default function Quotes() {
                       >
                         {statusCfg.label}
                       </Badge>
-                      <span className="text-lg font-bold text-slate-800">
-                        {Number(quote.total).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} &#8362;
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-xs text-slate-500">כולל מע״מ</span>
+                        <span className="text-lg font-bold text-slate-800" dir="ltr">
+                          {(Number(quote.total) * 1.18).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} &#8362;
+                        </span>
+                      </div>
                       {isReadyToConvert && (
                         <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300" variant="outline">
                           מוכנה להמרה
