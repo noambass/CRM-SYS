@@ -476,6 +476,7 @@ export default function JobForm() {
                   variant="outline"
                   role="combobox"
                   className="w-full justify-between h-auto py-3"
+                  disabled={isFromQuote && isEditing}
                 >
                   {formData.client_name ? (
                     <div className="text-right">
@@ -536,6 +537,7 @@ export default function JobForm() {
                 value={formData.title}
                 onChange={(e) => handleChange('title', e.target.value)}
                 placeholder="תיאור קצר של העבודה"
+                disabled={isFromQuote && isEditing}
               />
             </div>
 
@@ -547,6 +549,7 @@ export default function JobForm() {
                 onChange={(e) => handleChange('description', e.target.value)}
                 placeholder="תיאור מלא של העבודה..."
                 rows={4}
+                disabled={isFromQuote && isEditing}
               />
             </div>
 
@@ -846,7 +849,7 @@ export default function JobForm() {
               <p className="text-sm">
                 <span className="font-medium text-slate-700">סטטוס נוכחי:</span>
                 <span className="text-slate-700 mr-2">
-                  {formData.scheduled_date && formData.scheduled_time ? 'מחכה לביצוע' : 'הצעת מחיר'}
+                  {formData.scheduled_date && formData.scheduled_time ? 'ממתין לביצוע' : 'ממתין לתזמון'}
                 </span>
               </p>
               <p className="text-xs text-slate-500 mt-1">הסטטוס נקבע אוטומטית לפי הזנת תאריך ושעה</p>

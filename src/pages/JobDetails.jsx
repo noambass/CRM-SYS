@@ -16,18 +16,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { JobStatusBadge, PriorityBadge, InvoiceStatusBadge } from "@/components/ui/DynamicStatusBadge";
+import { JobStatusBadge, PriorityBadge } from "@/components/ui/DynamicStatusBadge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 
-const DEFAULT_VAT_RATE = 0.18;
-const DEFAULT_ESTIMATED_MINUTES = 180;
-const BUFFER_MINUTES = 20;
-
-// Approx home base (Rova TAZ, Ashdod) – not critical precision for MVP
-const HOME_BASE = { lat: 31.79, lng: 34.65 };
+import { STATUS_CONFIG, getNextAllowedStatuses } from '@/components/shared/StatusFlow';
 
 // Status actions removed - using dynamic status from AppConfig
 
@@ -48,9 +43,6 @@ export default function JobDetails() {
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
-
-  // Payment
-  const [paymentStatus, setPaymentStatus] = useState('unpaid');
 
   // Smart scheduling
   const [smartOpen, setSmartOpen] = useState(false);
@@ -115,7 +107,6 @@ export default function JobDetails() {
           scheduled_time: jobData.scheduled_time || (scheduledDate ? format(scheduledDate, 'HH:mm') : null),
           created_date: jobData.created_date || jobData.created_at
         });
-        setPaymentStatus(jobData.payment_status || 'unpaid');
         await loadAttachments(jobData.id);
         if (jobData.client_id) {
           const { data: clientData, error: clientError } = await supabase
@@ -154,28 +145,7 @@ export default function JobDetails() {
         .eq('owner_id', user.id);
       if (error) throw error;
       setJob(prev => ({ ...prev, ...updateData }));
-
-      // Business rule: private clients become "inactive" automatically after job completion
-      if (newStatus === 'done' && job?.client_id) {
-        try {
-          const { data: c, error: ce } = await supabase
-            .from('clients')
-            .select('id, client_type')
-            .eq('id', job.client_id)
-            .eq('owner_id', user.id)
-            .maybeSingle();
-          if (!ce && c?.client_type === 'private') {
-            await supabase
-              .from('clients')
-              .update({ status: 'inactive' })
-              .eq('id', c.id)
-              .eq('owner_id', user.id);
-          }
-        } catch (e) {
-          // Silent: completion should not fail because of client status
-          console.warn('Failed to auto-inactivate private client:', e);
-        }
-      }
+      toast.success('סטטוס עודכן בהצלחה');
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error('שגיאה בעדכון סטטוס', {
@@ -216,37 +186,13 @@ export default function JobDetails() {
         completed_at: finalStatus === 'done' ? (prev?.completed_at || new Date().toISOString()) : null
       }));
       setIsEditingSchedule(false);
-      // Navigate to Calendar after scheduling
-      setTimeout(() => navigate(createPageUrl('Calendar')), 500);
+      toast.success('העבודה תוזמנה בהצלחה');
     } catch (error) {
       console.error('Error scheduling job:', error);
       toast.error('שגיאה בתזמון עבודה', {
         description: 'נסה שוב בעוד רגע',
         duration: 4000
       });
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const updatePaymentStatus = async (nextStatus) => {
-    if (!user) return;
-    try {
-      setUpdating(true);
-      const update = { payment_status: nextStatus };
-      // Optional timestamp if column exists (safe to send even if ignored in schema)
-      if (nextStatus === 'paid') update.paid_at = new Date().toISOString();
-      const { error } = await supabase
-        .from('jobs')
-        .update(update)
-        .eq('id', jobId)
-        .eq('owner_id', user.id);
-      if (error) throw error;
-      setPaymentStatus(nextStatus);
-      setJob(prev => ({ ...prev, ...update }));
-    } catch (error) {
-      console.error('Error updating payment status:', error);
-      toast.error('שגיאה בעדכון סטטוס תשלום', { description: 'נסה שוב בעוד רגע', duration: 4000 });
     } finally {
       setUpdating(false);
     }
@@ -515,10 +461,34 @@ export default function JobDetails() {
        <div className="flex flex-wrap gap-3">
          <JobStatusBadge status={job.status} />
          <PriorityBadge priority={job.priority} />
-         {job.invoice_status && job.invoice_status !== 'not_created' && (
-           <InvoiceStatusBadge status={job.invoice_status} />
-         )}
        </div>
+
+      {/* Status Flow */}
+      {job.status !== 'done' && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-sm text-slate-500 mb-3">קדם סטטוס:</p>
+            <div className="flex flex-wrap gap-2">
+              {getNextAllowedStatuses(job.status).map((nextStatus) => {
+                const cfg = STATUS_CONFIG[nextStatus];
+                return (
+                  <Button
+                    key={nextStatus}
+                    size="sm"
+                    disabled={updating}
+                    onClick={() => updateJobStatus(nextStatus)}
+                    style={{ backgroundColor: cfg.color }}
+                    className="text-white hover:opacity-90"
+                  >
+                    {updating ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : null}
+                    {cfg.label}
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Amount */}
       {(job.agreed_amount != null || job.quote_id) && (
@@ -593,25 +563,6 @@ export default function JobDetails() {
         </DialogContent>
       </Dialog>
 
-      {/* Complete Job Action */}
-      {job.status !== 'done' && (
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-50 to-emerald-100">
-          <CardContent className="p-4">
-            <Button
-              onClick={() => updateJobStatus('done')}
-              disabled={updating}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {updating ? (
-                <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-              ) : (
-                <CheckCircle className="w-4 h-4 ml-2" />
-              )}
-              סמן את העבודה כהושלמה
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Client Info */}
       {client && (

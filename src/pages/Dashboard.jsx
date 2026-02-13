@@ -25,11 +25,9 @@ export default function Dashboard() {
      totalClients: 0,
      totalJobs: 0,
      openQuotes: 0,
-     quoteJobs: 0,
-     waitingScheduleJobs: 0,
-     waitingExecutionJobs: 0,
+     pendingJobs: 0,
      doneJobs: 0,
-     completedToday: 0
+     monthlyRevenue: 0
    });
    const [recentJobs, setRecentJobs] = useState([]);
     const [todayJobs, setTodayJobs] = useState([]);
@@ -93,14 +91,19 @@ export default function Dashboard() {
         const scheduledDate = j.scheduled_date || getDateOnly(j.scheduled_at);
         return scheduledDate === today;
       });
-      const quoteJobs = jobs.filter((j) => j.status === 'quote');
-      const waitingScheduleJobs = jobs.filter((j) => j.status === 'waiting_schedule');
-      const waitingExecutionJobs = jobs.filter((j) => j.status === 'waiting_execution');
+      const pendingJobs = jobs.filter((j) => j.status !== 'done');
       const doneJobs = jobs.filter((j) => j.status === 'done');
-      const completedToday = jobs.filter((j) => {
-        const completedDate = getDateOnly(j.completed_at || j.completed_date);
-        return j.status === 'done' && completedDate === today;
-      });
+
+      // Monthly revenue: sum of agreed_amount for jobs completed this month
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthlyRevenue = doneJobs
+        .filter((j) => {
+          const completedDate = j.completed_at || j.completed_date;
+          return completedDate && new Date(completedDate) >= monthStart;
+        })
+        .reduce((sum, j) => sum + (Number(j.agreed_amount) || 0), 0);
+
       const unscheduledJobsList = jobs.filter((j) => {
         const scheduledDate = j.scheduled_date || getDateOnly(j.scheduled_at);
         return !scheduledDate && j.status !== 'done';
@@ -114,11 +117,9 @@ export default function Dashboard() {
         totalClients: clients.length,
         totalJobs: jobs.length,
         openQuotes: openQuotesCount,
-        quoteJobs: quoteJobs.length,
-        waitingScheduleJobs: waitingScheduleJobs.length,
-        waitingExecutionJobs: waitingExecutionJobs.length,
+        pendingJobs: pendingJobs.length,
         doneJobs: doneJobs.length,
-        completedToday: completedToday.length
+        monthlyRevenue
       });
 
       setRecentJobs(jobs.slice(0, 5));
@@ -160,7 +161,7 @@ export default function Dashboard() {
   if (loading) return <LoadingSpinner />;
 
   return (
-     <div className="p-3 lg:p-8 space-y-4 lg:space-y-8">
+     <div dir="rtl" className="p-3 lg:p-8 space-y-4 lg:space-y-8">
        {/* Header */}
        <div className="flex flex-col gap-4">
          <div>
@@ -180,48 +181,28 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
         <StatCard
-          title="לקוחות"
-          value={stats.totalClients}
-          icon={Users}
-          color="bg-teal-500" />
-
-        <StatCard
           title="הצעות פתוחות"
           value={stats.openQuotes}
           icon={FileText}
           color="bg-violet-500" />
 
         <StatCard
-          title="ממתין לתזמון"
-          value={stats.waitingScheduleJobs}
-          icon={Clock}
+          title="עבודות פתוחות"
+          value={stats.pendingJobs}
+          icon={Briefcase}
           color="bg-amber-500" />
 
-        <StatCard
-          title="ממתין לביצוע"
-          value={stats.waitingExecutionJobs}
-          icon={AlertCircle}
-          color="bg-blue-500" />
-
-        <StatCard
-          title="בוצע"
-          value={stats.doneJobs}
-          icon={CheckCircle}
-          color="bg-emerald-500" />
-      </div>
-
-      {/* Open Jobs = all except done */}
-      <div className="grid grid-cols-2 gap-2 lg:gap-4">
-        <StatCard
-          title="עבודות פתוחות"
-          value={stats.quoteJobs + stats.waitingScheduleJobs + stats.waitingExecutionJobs}
-          icon={Briefcase}
-          color="bg-orange-500" />
         <StatCard
           title="עבודות שבוצעו"
           value={stats.doneJobs}
           icon={CheckCircle}
           color="bg-emerald-500" />
+
+        <StatCard
+          title="הכנסות החודש"
+          value={`${stats.monthlyRevenue.toLocaleString('he-IL')} ₪`}
+          icon={TrendingUp}
+          color="bg-blue-500" />
       </div>
 
           {/* Weekly Calendar */}

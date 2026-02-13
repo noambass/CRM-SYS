@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
-import { 
-  Settings as SettingsIcon, Users, Building2, 
-  Plus, Edit, Trash2, Save, Loader2, MoreVertical, Palette
+import {
+  Settings as SettingsIcon, Users,
+  Plus, Edit, Trash2, Save, Loader2, MoreVertical
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,12 +42,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
-import CustomizationTab from "@/components/settings/CustomizationTab";
-import JobTypesTab from "@/components/settings/JobTypesTab";
-import IntegrationsTab from "@/components/settings/IntegrationsTab";
 
 const roleLabels = {
   admin: 'מנהל',
@@ -59,9 +55,7 @@ const roleLabels = {
 export default function Settings() {
   const { user, isLoadingAuth } = useAuth();
   const [employees, setEmployees] = useState([]);
-  const [configs, setConfigs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('employees');
 
   // Employee dialog
   const [employeeDialogOpen, setEmployeeDialogOpen] = useState(false);
@@ -87,21 +81,13 @@ export default function Settings() {
   const loadData = async () => {
     if (!user) return;
     try {
-      const [employeesRes, configsRes] = await Promise.all([
-        supabase
-          .from('employees')
-          .select('*')
-          .eq('owner_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('app_configs')
-          .select('*')
-          .eq('owner_id', user.id)
-          .order('created_at', { ascending: false })
-      ]);
+      const employeesRes = await supabase
+        .from('employees')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false });
 
       if (employeesRes.error) throw employeesRes.error;
-      if (configsRes.error) throw configsRes.error;
 
       const normalizedEmployees = (employeesRes.data || []).map((row) => ({
         id: row.id,
@@ -139,7 +125,6 @@ export default function Settings() {
         setEmployees(normalizedEmployees);
       }
 
-      setConfigs(configsRes.data || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -247,33 +232,11 @@ export default function Settings() {
           <SettingsIcon className="w-8 h-8" />
           הגדרות
         </h1>
-        <p className="text-slate-500 mt-1">נהל עובדים, אוטומציות והגדרות מערכת</p>
+        <p className="text-slate-500 mt-1">נהל עובדים</p>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
-        <TabsList className="bg-slate-100 justify-start">
-          <TabsTrigger value="employees">
-            עובדים
-            <Users className="w-4 h-4 mr-2" />
-          </TabsTrigger>
-          <TabsTrigger value="job_types">
-            סוגי עבודות
-            <Building2 className="w-4 h-4 mr-2" />
-          </TabsTrigger>
-          <TabsTrigger value="customization">
-            התאמה אישית
-            <Palette className="w-4 h-4 mr-2" />
-          </TabsTrigger>
-          <TabsTrigger value="integrations">
-            אינטגרציות
-            <SettingsIcon className="w-4 h-4 mr-2" />
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Employees Tab */}
-        <TabsContent value="employees" className="mt-6">
-          <Card className="border-0 shadow-sm">
+      {/* Employees */}
+      <Card className="border-0 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-lg">ניהול עובדים</CardTitle>
@@ -352,25 +315,6 @@ export default function Settings() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* Job Types Tab */}
-        <TabsContent value="job_types" className="mt-6">
-          <JobTypesTab />
-        </TabsContent>
-
-        {/* Integrations Tab */}
-        <TabsContent value="integrations" className="mt-6">
-          <IntegrationsTab />
-        </TabsContent>
-
-
-
-        {/* Customization Tab */}
-        <TabsContent value="customization" className="mt-6">
-          <CustomizationTab configs={configs} setConfigs={setConfigs} />
-        </TabsContent>
-      </Tabs>
 
       {/* Employee Dialog */}
       <Dialog open={employeeDialogOpen} onOpenChange={setEmployeeDialogOpen}>

@@ -25,12 +25,6 @@ const defaultClientStatuses = {
   inactive: { label: 'לא פעיל', color: '#64748b' },
 };
 
-const defaultInvoiceStatuses = {
-  not_created: { label: 'לא נוצרה', color: '#64748b' },
-  created: { label: 'נוצרה', color: '#3b82f6' },
-  sent: { label: 'נשלחה', color: '#8b5cf6' },
-  paid: { label: 'שולמה', color: '#10b981' },
-};
 
 const cachedConfigsByUser = new Map();
 const pendingConfigsByUser = new Map();
@@ -146,41 +140,6 @@ export function PriorityBadge({ priority }) {
       className="font-medium"
     >
       {priorityConfig.label}
-    </Badge>
-  );
-}
-
-export function InvoiceStatusBadge({ status }) {
-  const { user } = useAuth();
-  const [config, setConfig] = useState(null);
-
-  useEffect(() => {
-    let mounted = true;
-    if (!user) {
-      setConfig(null);
-      return () => {};
-    }
-    loadConfigs(user.id).then(configs => {
-      if (mounted) setConfig(configs.invoice_statuses || {});
-    });
-    return () => {
-      mounted = false;
-    };
-  }, [user?.id]);
-
-  const statusConfig = (config && config[status]) || defaultInvoiceStatuses[status] || { label: status, color: '#64748b' };
-
-  return (
-    <Badge 
-      variant="outline"
-      style={{
-        backgroundColor: `${statusConfig.color}20`,
-        color: statusConfig.color,
-        borderColor: statusConfig.color
-      }}
-      className="font-medium"
-    >
-      {statusConfig.label}
     </Badge>
   );
 }

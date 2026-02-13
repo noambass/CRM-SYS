@@ -5,7 +5,7 @@ import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowRight, Edit, FileText, Loader2, Briefcase, ExternalLink
+  ArrowRight, Edit, FileText, Loader2, Briefcase, ExternalLink, User
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,14 @@ const QUOTE_STATUSES = [
   { value: 'approved', label: 'אושרה', color: '#10b981' },
   { value: 'rejected', label: 'נדחתה', color: '#ef4444' },
 ];
+
+// Allowed transitions: draft -> sent -> approved/rejected
+const QUOTE_ALLOWED_TRANSITIONS = {
+  draft: ['sent'],
+  sent: ['approved', 'rejected'],
+  approved: [],
+  rejected: ['draft'],
+};
 
 export default function QuoteDetails() {
   const navigate = useNavigate();
@@ -96,17 +104,12 @@ export default function QuoteDetails() {
     setConverting(true);
     try {
       // Atomic: create job + update quote in sequence
-      const lineItemsDescriptions = (quote.line_items || [])
-        .map(item => item.description)
-        .filter(Boolean)
-        .join(', ');
-
       const jobData = {
         owner_id: user.id,
         client_id: quote.client_id,
         client_name: quote.client_name,
         client_phone: quote.client_phone,
-        title: lineItemsDescriptions || 'עבודה מהצעת מחיר',
+        title: 'ציפוי אמבטיה',
         description: quote.notes || '',
         status: 'waiting_schedule',
         priority: 'normal',
@@ -155,6 +158,7 @@ export default function QuoteDetails() {
   const canEdit = quote.status === 'draft' && !quote.converted_job_id;
   const canConvert = quote.status === 'approved' && !quote.converted_job_id;
   const lineItems = Array.isArray(quote.line_items) ? quote.line_items : [];
+  const allowedNextStatuses = QUOTE_ALLOWED_TRANSITIONS[quote.status] || [];
 
   return (
     <div dir="rtl" className="p-4 lg:p-8 space-y-6 max-w-4xl mx-auto">
@@ -175,7 +179,13 @@ export default function QuoteDetails() {
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-slate-800">הצעת מחיר</h1>
-          <p className="text-slate-500 mt-1">{quote.client_name}</p>
+          <p
+            className="text-blue-600 mt-1 cursor-pointer hover:underline"
+            onClick={() => quote.client_id && navigate(createPageUrl(`ClientDetails?id=${quote.client_id}`))}
+          >
+            <User className="w-4 h-4 inline ml-1" />
+            {quote.client_name}
+          </p>
         </div>
         <div className="text-2xl font-bold text-slate-800" dir="ltr">
           {Number(quote.total).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} &#8362;
@@ -199,25 +209,31 @@ export default function QuoteDetails() {
       </div>
 
       {/* Status Chips */}
-      <Card className="border-0 shadow-sm">
-        <CardContent className="p-4">
-          <p className="text-sm text-slate-500 mb-3">שנה סטטוס:</p>
-          <div className="flex flex-wrap gap-2">
-            {QUOTE_STATUSES.map((s) => (
-              <Button
-                key={s.value}
-                variant={quote.status === s.value ? 'default' : 'outline'}
-                size="sm"
-                disabled={updating || quote.status === s.value}
-                onClick={() => updateStatus(s.value)}
-                style={quote.status === s.value ? { backgroundColor: s.color } : { borderColor: s.color, color: s.color }}
-              >
-                {s.label}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {allowedNextStatuses.length > 0 && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-sm text-slate-500 mb-3">קדם סטטוס:</p>
+            <div className="flex flex-wrap gap-2">
+              {allowedNextStatuses.map((nextValue) => {
+                const s = QUOTE_STATUSES.find(st => st.value === nextValue);
+                if (!s) return null;
+                return (
+                  <Button
+                    key={s.value}
+                    size="sm"
+                    disabled={updating}
+                    onClick={() => updateStatus(s.value)}
+                    style={{ backgroundColor: s.color }}
+                    className="text-white hover:opacity-90"
+                  >
+                    {s.label}
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-3">
