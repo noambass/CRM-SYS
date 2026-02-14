@@ -3,9 +3,8 @@ import { useAuth } from '@/lib/AuthContext'
 import { Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
-  const { signInWithPassword, signUp } = useAuth()
+  const { signInWithPassword } = useAuth()
 
-  const [mode, setMode] = useState('login') // 'login' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -18,8 +17,7 @@ export default function Login() {
     setLoading(true)
 
     try {
-      const fn = mode === 'login' ? signInWithPassword : signUp
-      const { error } = await fn(email, password)
+      const { error } = await signInWithPassword(email, password)
       if (error) throw error
     } catch (err) {
       setError('הפעולה נכשלה. נסה שוב.')
@@ -31,9 +29,7 @@ export default function Login() {
   return (
     <div dir="rtl" className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-md border rounded-xl p-6 bg-white text-right">
-        <h1 className="text-xl font-semibold mb-4">
-          {mode === 'login' ? 'התחברות' : 'יצירת חשבון'}
-        </h1>
+        <h1 className="text-xl font-semibold mb-4">התחברות</h1>
 
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
@@ -78,21 +74,9 @@ export default function Login() {
             disabled={loading}
             type="submit"
           >
-            {loading ? 'נא להמתין…' : (mode === 'login' ? 'התחברות' : 'הרשמה')}
+            {loading ? 'נא להמתין…' : 'התחברות'}
           </button>
         </form>
-
-        <div className="mt-4 text-sm">
-          {mode === 'login' ? (
-            <button className="underline" onClick={() => setMode('signup')}>
-              אין לך חשבון? הרשמה
-            </button>
-          ) : (
-            <button className="underline" onClick={() => setMode('login')}>
-              כבר יש לך חשבון? התחברות
-            </button>
-          )}
-        </div>
       </div>
     </div>
   )

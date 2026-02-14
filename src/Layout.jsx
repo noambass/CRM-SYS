@@ -7,7 +7,7 @@ import logo from '@/assets/logo.png';
 import { Toaster } from 'sonner';
 import {
   Users, Briefcase, Settings, Menu, Home,
-  LogOut, User, Plus, MapPin, Calendar as CalendarIcon
+  LogOut, User, Plus, MapPin, Calendar as CalendarIcon, FileText
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -24,6 +24,7 @@ import FloatingActionButton from "@/components/shared/FloatingActionButton";
 const navItems = [
   { name: 'דשבורד', icon: Home, page: 'Dashboard' },
   { name: 'לקוחות', icon: Users, page: 'Clients' },
+  { name: 'הצעות מחיר', icon: FileText, page: 'Quotes' },
   { name: 'עבודות', icon: Briefcase, page: 'Jobs' },
   { name: 'לוח שנה', icon: CalendarIcon, page: 'Calendar' },
   { name: 'מפה', icon: MapPin, page: 'Map' },

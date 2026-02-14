@@ -8,15 +8,7 @@ const defaultJobStatuses = {
   quote: { label: 'הצעת מחיר', color: '#6366f1' },
   waiting_schedule: { label: 'ממתין לתזמון', color: '#f59e0b' },
   waiting_execution: { label: 'ממתין לביצוע', color: '#3b82f6' },
-  done: { label: 'הושלם', color: '#10b981' },
-  in_progress: { label: 'בביצוע', color: '#8b5cf6' },
-  completed: { label: 'הושלם', color: '#10b981' },
-  cancelled: { label: 'בוטל', color: '#64748b' },
-  // Legacy statuses for backward compatibility
-  new: { label: 'חדש', color: '#3b82f6' },
-  scheduled: { label: 'מתוזמן', color: '#8b5cf6' },
-  on_the_way: { label: 'בדרך', color: '#06b6d4' },
-  pending_payment: { label: 'ממתין לתשלום', color: '#f97316' },
+  done: { label: 'הושלם', color: '#10b981' }
 };
 
 const defaultJobPriorities = {
@@ -33,12 +25,6 @@ const defaultClientStatuses = {
   inactive: { label: 'לא פעיל', color: '#64748b' },
 };
 
-const defaultInvoiceStatuses = {
-  not_created: { label: 'לא נוצרה', color: '#64748b' },
-  created: { label: 'נוצרה', color: '#3b82f6' },
-  sent: { label: 'נשלחה', color: '#8b5cf6' },
-  paid: { label: 'שולמה', color: '#10b981' },
-};
 
 const cachedConfigsByUser = new Map();
 const pendingConfigsByUser = new Map();
@@ -158,41 +144,6 @@ export function PriorityBadge({ priority }) {
   );
 }
 
-export function InvoiceStatusBadge({ status }) {
-  const { user } = useAuth();
-  const [config, setConfig] = useState(null);
-
-  useEffect(() => {
-    let mounted = true;
-    if (!user) {
-      setConfig(null);
-      return () => {};
-    }
-    loadConfigs(user.id).then(configs => {
-      if (mounted) setConfig(configs.invoice_statuses || {});
-    });
-    return () => {
-      mounted = false;
-    };
-  }, [user?.id]);
-
-  const statusConfig = (config && config[status]) || defaultInvoiceStatuses[status] || { label: status, color: '#64748b' };
-
-  return (
-    <Badge 
-      variant="outline"
-      style={{
-        backgroundColor: `${statusConfig.color}20`,
-        color: statusConfig.color,
-        borderColor: statusConfig.color
-      }}
-      className="font-medium"
-    >
-      {statusConfig.label}
-    </Badge>
-  );
-}
-
 export function ClientStatusBadge({ status, clientType }) {
   const { user } = useAuth();
   const [config, setConfig] = useState(null);
@@ -252,6 +203,31 @@ export function ClientTypeBadge({ type }) {
       className="font-medium"
     >
       {config.label}
+    </Badge>
+  );
+}
+
+const defaultQuoteStatuses = {
+  draft: { label: 'טיוטה', color: '#64748b' },
+  sent: { label: 'נשלחה', color: '#8b5cf6' },
+  approved: { label: 'אושרה', color: '#10b981' },
+  rejected: { label: 'נדחתה', color: '#ef4444' },
+};
+
+export function QuoteStatusBadge({ status }) {
+  const statusConfig = defaultQuoteStatuses[status] || { label: status, color: '#64748b' };
+
+  return (
+    <Badge
+      variant="outline"
+      style={{
+        backgroundColor: `${statusConfig.color}20`,
+        color: statusConfig.color,
+        borderColor: statusConfig.color
+      }}
+      className="font-medium"
+    >
+      {statusConfig.label}
     </Badge>
   );
 }

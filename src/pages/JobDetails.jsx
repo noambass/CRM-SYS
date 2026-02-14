@@ -5,9 +5,9 @@ import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from 'sonner';
 import { uploadJobAttachment, listJobAttachments, getJobAttachmentSignedUrl } from '@/lib/storage/storageProvider';
-import { 
+import {
   ArrowRight, MapPin, Calendar, User, Edit, Phone,
-  Camera, FileText, CheckCircle, Loader2, Image
+  Camera, FileText, CheckCircle, Loader2, Image, MessageCircle, Navigation
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,18 +16,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { JobStatusBadge, PriorityBadge, InvoiceStatusBadge } from "@/components/ui/DynamicStatusBadge";
+import { JobStatusBadge, PriorityBadge } from "@/components/ui/DynamicStatusBadge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 
-const DEFAULT_VAT_RATE = 0.18;
-const DEFAULT_ESTIMATED_MINUTES = 180;
-const BUFFER_MINUTES = 20;
-
-// Approx home base (Rova TAZ, Ashdod) – not critical precision for MVP
-const HOME_BASE = { lat: 31.79, lng: 34.65 };
+import { STATUS_CONFIG, getNextAllowedStatuses } from '@/components/shared/StatusFlow';
 
 // Status actions removed - using dynamic status from AppConfig
 
@@ -48,9 +43,6 @@ export default function JobDetails() {
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
-
-  // Payment
-  const [paymentStatus, setPaymentStatus] = useState('unpaid');
 
   // Smart scheduling
   const [smartOpen, setSmartOpen] = useState(false);
@@ -115,7 +107,6 @@ export default function JobDetails() {
           scheduled_time: jobData.scheduled_time || (scheduledDate ? format(scheduledDate, 'HH:mm') : null),
           created_date: jobData.created_date || jobData.created_at
         });
-        setPaymentStatus(jobData.payment_status || 'unpaid');
         await loadAttachments(jobData.id);
         if (jobData.client_id) {
           const { data: clientData, error: clientError } = await supabase
@@ -154,28 +145,7 @@ export default function JobDetails() {
         .eq('owner_id', user.id);
       if (error) throw error;
       setJob(prev => ({ ...prev, ...updateData }));
-
-      // Business rule: private clients become "inactive" automatically after job completion
-      if (newStatus === 'done' && job?.client_id) {
-        try {
-          const { data: c, error: ce } = await supabase
-            .from('clients')
-            .select('id, client_type')
-            .eq('id', job.client_id)
-            .eq('owner_id', user.id)
-            .maybeSingle();
-          if (!ce && c?.client_type === 'private') {
-            await supabase
-              .from('clients')
-              .update({ status: 'inactive' })
-              .eq('id', c.id)
-              .eq('owner_id', user.id);
-          }
-        } catch (e) {
-          // Silent: completion should not fail because of client status
-          console.warn('Failed to auto-inactivate private client:', e);
-        }
-      }
+      toast.success('סטטוס עודכן בהצלחה');
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error('שגיאה בעדכון סטטוס', {
@@ -216,37 +186,13 @@ export default function JobDetails() {
         completed_at: finalStatus === 'done' ? (prev?.completed_at || new Date().toISOString()) : null
       }));
       setIsEditingSchedule(false);
-      // Navigate to Calendar after scheduling
-      setTimeout(() => navigate(createPageUrl('Calendar')), 500);
+      toast.success('העבודה תוזמנה בהצלחה');
     } catch (error) {
       console.error('Error scheduling job:', error);
       toast.error('שגיאה בתזמון עבודה', {
         description: 'נסה שוב בעוד רגע',
         duration: 4000
       });
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const updatePaymentStatus = async (nextStatus) => {
-    if (!user) return;
-    try {
-      setUpdating(true);
-      const update = { payment_status: nextStatus };
-      // Optional timestamp if column exists (safe to send even if ignored in schema)
-      if (nextStatus === 'paid') update.paid_at = new Date().toISOString();
-      const { error } = await supabase
-        .from('jobs')
-        .update(update)
-        .eq('id', jobId)
-        .eq('owner_id', user.id);
-      if (error) throw error;
-      setPaymentStatus(nextStatus);
-      setJob(prev => ({ ...prev, ...update }));
-    } catch (error) {
-      console.error('Error updating payment status:', error);
-      toast.error('שגיאה בעדכון סטטוס תשלום', { description: 'נסה שוב בעוד רגע', duration: 4000 });
     } finally {
       setUpdating(false);
     }
@@ -470,13 +416,6 @@ export default function JobDetails() {
   if (loading) return <LoadingSpinner />;
   if (!job) return <EmptyState icon={FileText} title="עבודה לא נמצאה" description="העבודה המבוקשת לא נמצאה במערכת" />;
 
-  const vatRate = Number(job.vat_rate);
-  const safeVatRate = Number.isFinite(vatRate) ? vatRate : 0.18;
-  const vatPct = Math.round(safeVatRate * 100);
-  const subtotal = Number(job.total_price) || 0;
-  const vatAmount = subtotal * safeVatRate;
-  const totalWithVat = subtotal + vatAmount;
-
   return (
     <div dir="rtl" className="p-4 lg:p-8 space-y-6 max-w-4xl mx-auto">
         {/* Created Date */}
@@ -498,49 +437,114 @@ export default function JobDetails() {
           <h1 className="text-2xl font-bold text-slate-800">{job.title}</h1>
           <p className="text-slate-500 mt-1">{job.client_name}</p>
         </div>
-        <Button 
-          variant="outline"
-          onClick={() => navigate(createPageUrl(`JobForm?id=${job.id}`))}
-        >
-          <Edit className="w-4 h-4 ml-2" />
-          עריכה
-        </Button>
+        {!job.quote_id ? (
+          <Button
+            variant="outline"
+            onClick={() => navigate(createPageUrl(`JobForm?id=${job.id}`))}
+          >
+            <Edit className="w-4 h-4 ml-2" />
+            עריכה
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            onClick={() => navigate(createPageUrl(`JobForm?id=${job.id}`))}
+            className="text-amber-600 border-amber-300"
+          >
+            <Edit className="w-4 h-4 ml-2" />
+            עריכה מוגבלת
+          </Button>
+        )}
       </div>
 
       {/* Status & Priority */}
        <div className="flex flex-wrap gap-3">
          <JobStatusBadge status={job.status} />
          <PriorityBadge priority={job.priority} />
-         {job.invoice_status && job.invoice_status !== 'not_created' && (
-           <InvoiceStatusBadge status={job.invoice_status} />
-         )}
        </div>
 
-      {/* Payment */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg">תשלום</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="text-sm text-slate-600">
-              סה"כ לתשלום: <span className="font-semibold text-slate-800">₪{totalWithVat.toFixed(2)}</span>
-              <span className="text-slate-500"> (כולל מע"מ {vatPct}%)</span>
+      {/* Status Flow */}
+      {job.status !== 'done' && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-sm text-slate-500 mb-3">קדם סטטוס:</p>
+            <div className="flex flex-wrap gap-2">
+              {getNextAllowedStatuses(job.status).map((nextStatus) => {
+                const cfg = STATUS_CONFIG[nextStatus];
+                return (
+                  <Button
+                    key={nextStatus}
+                    size="sm"
+                    disabled={updating}
+                    onClick={() => updateJobStatus(nextStatus)}
+                    style={{ backgroundColor: cfg.color }}
+                    className="text-white hover:opacity-90"
+                  >
+                    {updating ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : null}
+                    {cfg.label}
+                  </Button>
+                );
+              })}
             </div>
-            <div className="w-full sm:w-56">
-              <Select value={paymentStatus} onValueChange={(v) => updatePaymentStatus(v)} disabled={updating}>
-                <SelectTrigger>
-                  <SelectValue placeholder="סטטוס תשלום" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unpaid">טרם שולם</SelectItem>
-                  <SelectItem value="paid">שולם</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Amount */}
+      {(job.agreed_amount != null || job.quote_id) && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-slate-500">
+                  {job.quote_id ? 'סכום מהצעת מחיר (נעול)' : 'סכום שסוכם'}
+                </p>
+                <div className="space-y-1 mt-2">
+                  <p className="text-sm text-slate-600" dir="ltr">
+                    טרם מע״מ: {Number(job.agreed_amount || 0).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                  </p>
+                  <p className="text-sm text-slate-600" dir="ltr">
+                    מע״מ (18%): {(Number(job.agreed_amount || 0) * 0.18).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                  </p>
+                  <p className="text-2xl font-bold text-slate-800 pt-1" dir="ltr">
+                    סה״כ: {(Number(job.agreed_amount || 0) * 1.18).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                  </p>
+                </div>
+              </div>
+            {job.quote_id && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(createPageUrl(`QuoteDetails?id=${job.quote_id}`))}
+                className="text-blue-600 border-blue-300"
+              >
+                <FileText className="w-4 h-4 ml-1" />
+                פתח הצעת מחיר קשורה
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Warranty */}
+      {job.warranty !== undefined && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-sm text-slate-500 mb-1">אחריות</p>
+            {job.warranty ? (
+              <p className="font-medium text-emerald-700">יש אחריות</p>
+            ) : (
+              <>
+                <p className="font-medium text-red-600">אין אחריות</p>
+                {job.warranty_note && (
+                  <p className="text-sm text-slate-600 mt-1">{job.warranty_note}</p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
 
       <Dialog open={smartOpen} onOpenChange={setSmartOpen}>
         <DialogContent className="sm:max-w-lg" dir="rtl">
@@ -568,25 +572,6 @@ export default function JobDetails() {
         </DialogContent>
       </Dialog>
 
-      {/* Complete Job Action */}
-      {job.status !== 'done' && (
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-50 to-emerald-100">
-          <CardContent className="p-4">
-            <Button
-              onClick={() => updateJobStatus('done')}
-              disabled={updating}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {updating ? (
-                <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-              ) : (
-                <CheckCircle className="w-4 h-4 ml-2" />
-              )}
-              סמן את העבודה כהושלמה
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Client Info */}
       {client && (
@@ -608,8 +593,20 @@ export default function JobDetails() {
                 <h4 className="font-semibold text-slate-800">{job.client_name}</h4>
                 <p className="text-sm text-slate-500" dir="ltr">{job.client_phone || client.phone}</p>
               </div>
-              <Button 
-                size="icon" 
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const phone = (job.client_phone || client.phone || '').replace(/\D/g, '');
+                  window.open(`https://wa.me/${phone}`, '_blank');
+                }}
+                className="text-green-600 hover:text-green-700"
+              >
+                <MessageCircle className="w-4 h-4" />
+              </Button>
+              <Button
+                size="icon"
                 variant="ghost"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -646,25 +643,6 @@ export default function JobDetails() {
               </div>
             )}
 
-            {(job.resident_phone || job.resident_name) && (
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-amber-100 text-amber-700">
-                    {job.resident_name ? job.resident_name.charAt(0) : 'ד'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <p className="text-xs text-amber-700 font-medium mb-1">דייר בבית</p>
-                  {job.resident_name && <h4 className="font-semibold text-slate-800">{job.resident_name}</h4>}
-                  {job.resident_phone && <p className="text-sm text-slate-500" dir="ltr">{job.resident_phone}</p>}
-                </div>
-                {job.resident_phone && (
-                  <Button size="icon" variant="ghost" onClick={() => window.open(`tel:${job.resident_phone}`)}>
-                    <Phone className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
@@ -691,6 +669,22 @@ export default function JobDetails() {
                 <p className="text-sm text-slate-500">כתובת</p>
                 <p className="font-medium text-slate-800">{job.address}{job.city ? `, ${job.city}` : ''}</p>
               </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const addr = encodeURIComponent(`${job.address || ''}${job.city ? `, ${job.city}` : ''}`);
+                  if (job.address_lat && job.address_lng) {
+                    window.open(`https://waze.com/ul?ll=${job.address_lat},${job.address_lng}&navigate=yes`, '_blank');
+                  } else {
+                    window.open(`https://waze.com/ul?q=${addr}&navigate=yes`, '_blank');
+                  }
+                }}
+                className="text-blue-600"
+              >
+                <Navigation className="w-4 h-4 ml-1" />
+                נווט
+              </Button>
             </div>
 
             {!isEditingSchedule ? (
@@ -783,34 +777,6 @@ export default function JobDetails() {
               </div>
             )}
 
-            {/* DB impact: none (display formatting only; uses existing line_items/total_price fields). */}
-            {job.line_items && job.line_items.length > 0 && (
-              <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                <p className="text-sm text-emerald-700 font-medium mb-3">פרטי עבודה ומחיר</p>
-                <div className="space-y-2">
-                  {job.line_items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-slate-800">{item.description}</p>
-                        <p className="text-xs text-slate-500">כמות: {item.quantity}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-slate-800">₪{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toFixed(2)}</p>
-                        <p className="text-xs text-slate-500">₪{(Number(item.price) || 0).toFixed(2)} ליח'</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 pt-3 border-t border-emerald-300 flex justify-between">
-                  <span className="text-sm text-slate-600">לפני מע"מ</span>
-                  <span className="font-semibold text-slate-800">₪{(Number(job.total_price) || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium text-emerald-700">סה״כ כולל מע"מ {vatPct}%</span>
-                  <span className="font-bold text-lg text-emerald-600">₪{totalWithVat.toFixed(2)}</span>
-                </div>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>

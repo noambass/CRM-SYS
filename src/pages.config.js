@@ -56,6 +56,9 @@ import JobDetails from './pages/JobDetails';
 import JobForm from './pages/JobForm';
 import Jobs from './pages/Jobs';
 import Map from './pages/Map';
+import QuoteDetails from './pages/QuoteDetails';
+import QuoteForm from './pages/QuoteForm';
+import Quotes from './pages/Quotes';
 import Settings from './pages/Settings';
 import __Layout from './Layout.jsx';
 
@@ -70,6 +73,9 @@ export const PAGES = {
     "JobForm": JobForm,
     "Jobs": Jobs,
     "Map": Map,
+    "QuoteDetails": QuoteDetails,
+    "QuoteForm": QuoteForm,
+    "Quotes": Quotes,
     "Settings": Settings,
 }
 

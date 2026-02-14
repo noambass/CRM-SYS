@@ -5,7 +5,7 @@ import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import {
   Users, Briefcase, TrendingUp, Calendar,
-  Clock, CheckCircle, AlertCircle, ArrowUpRight, Plus } from
+  Clock, CheckCircle, AlertCircle, ArrowUpRight, Plus, FileText } from
 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,8 +24,10 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
      totalClients: 0,
      totalJobs: 0,
+     openQuotes: 0,
      pendingJobs: 0,
-     completedToday: 0
+     doneJobs: 0,
+     monthlyRevenue: 0
    });
    const [recentJobs, setRecentJobs] = useState([]);
     const [todayJobs, setTodayJobs] = useState([]);
@@ -41,7 +43,7 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     if (!user) return;
     try {
-      const [clientsRes, jobsRes] = await Promise.all([
+      const [clientsRes, jobsRes, quotesRes] = await Promise.all([
         supabase
           .from('clients')
           .select('*')
@@ -51,12 +53,19 @@ export default function Dashboard() {
           .select('*')
           .eq('owner_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(100)
+          .limit(100),
+        supabase
+          .from('quotes')
+          .select('id, status')
+          .eq('owner_id', user.id)
       ]);
-      if (clientsRes.error) throw clientsRes.error;
-      if (jobsRes.error) throw jobsRes.error;
+      if (clientsRes.error) console.warn('Clients query error:', clientsRes.error);
+      if (jobsRes.error) console.warn('Jobs query error:', jobsRes.error);
+      if (quotesRes.error) console.warn('Quotes query error:', quotesRes.error);
       const clients = clientsRes.data || [];
       const rawJobs = jobsRes.data || [];
+      const allQuotes = quotesRes.data || [];
+      const openQuotesCount = allQuotes.filter(q => ['draft', 'sent', 'approved'].includes(q.status)).length;
 
       const jobs = rawJobs.map((job) => {
         if (job.scheduled_at) {
@@ -83,11 +92,19 @@ export default function Dashboard() {
         const scheduledDate = j.scheduled_date || getDateOnly(j.scheduled_at);
         return scheduledDate === today;
       });
-      const pendingJobs = jobs.filter((j) => ['quote', 'waiting_schedule', 'waiting_execution'].includes(j.status));
-      const completedToday = jobs.filter((j) => {
-        const completedDate = getDateOnly(j.completed_at || j.completed_date);
-        return j.status === 'done' && completedDate === today;
-      });
+      const pendingJobs = jobs.filter((j) => j.status !== 'done');
+      const doneJobs = jobs.filter((j) => j.status === 'done');
+
+      // Monthly revenue: sum of agreed_amount (including 18% VAT) for jobs completed this month
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthlyRevenue = doneJobs
+        .filter((j) => {
+          const completedDate = j.completed_at || j.completed_date;
+          return completedDate && new Date(completedDate) >= monthStart;
+        })
+        .reduce((sum, j) => sum + (Number(j.agreed_amount) || 0) * 1.18, 0);
+
       const unscheduledJobsList = jobs.filter((j) => {
         const scheduledDate = j.scheduled_date || getDateOnly(j.scheduled_at);
         return !scheduledDate && j.status !== 'done';
@@ -100,8 +117,10 @@ export default function Dashboard() {
       setStats({
         totalClients: clients.length,
         totalJobs: jobs.length,
+        openQuotes: openQuotesCount,
         pendingJobs: pendingJobs.length,
-        completedToday: completedToday.length
+        doneJobs: doneJobs.length,
+        monthlyRevenue
       });
 
       setRecentJobs(jobs.slice(0, 5));
@@ -143,7 +162,7 @@ export default function Dashboard() {
   if (loading) return <LoadingSpinner />;
 
   return (
-     <div className="p-3 lg:p-8 space-y-4 lg:space-y-8">
+     <div dir="rtl" className="p-3 lg:p-8 space-y-4 lg:space-y-8">
        {/* Header */}
        <div className="flex flex-col gap-4">
          <div>
@@ -163,30 +182,29 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
         <StatCard
-          title="סה״כ לקוחות"
-          value={stats.totalClients}
-          icon={Users}
-          color="bg-blue-500" />
+          title="הצעות פתוחות"
+          value={stats.openQuotes}
+          icon={FileText}
+          color="bg-violet-500" />
 
         <StatCard
-          title="עבודות פעילות"
+          title="עבודות פתוחות"
           value={stats.pendingJobs}
           icon={Briefcase}
           color="bg-amber-500" />
 
         <StatCard
-          title="הושלמו היום"
-          value={stats.completedToday}
+          title="עבודות שבוצעו"
+          value={stats.doneJobs}
           icon={CheckCircle}
           color="bg-emerald-500" />
 
         <StatCard
-          title="סה״כ עבודות"
-          value={stats.totalJobs}
-          icon={Calendar}
-          color="bg-purple-500" />
-
-          </div>
+          title="הכנסות החודש"
+          value={`${stats.monthlyRevenue.toLocaleString('he-IL')} ₪`}
+          icon={TrendingUp}
+          color="bg-blue-500" />
+      </div>
 
           {/* Weekly Calendar */}
           <WeeklyCalendar />
@@ -405,14 +423,20 @@ export default function Dashboard() {
               <h3 className="text-xl font-bold">פעולות מהירות</h3>
               <p className="text-emerald-100 mt-1">צור לקוח או עבודה חדשה במהירות</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
               <Button
                 onClick={() => navigate(createPageUrl('ClientForm'))}
                 variant="secondary"
                 className="bg-white/20 hover:bg-white/30 text-white border-0">
-
                 <Users className="w-4 h-4 ml-2" />
                 לקוח חדש
+              </Button>
+              <Button
+                onClick={() => navigate(createPageUrl('QuoteForm'))}
+                variant="secondary"
+                className="bg-white/20 hover:bg-white/30 text-white border-0">
+                <FileText className="w-4 h-4 ml-2" />
+                הצעה חדשה
               </Button>
               <Button
                 onClick={() => navigate(createPageUrl('JobForm'))}

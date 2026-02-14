@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { Plus, X, Briefcase, Users } from 'lucide-react';
+import { Plus, X, Briefcase, Users, FileText } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 
 export default function FloatingActionButton() {
@@ -13,6 +13,15 @@ export default function FloatingActionButton() {
       {/* Action Buttons */}
       {isOpen && (
         <div className="absolute bottom-16 left-0 flex flex-col gap-3 mb-2">
+          <Button
+            onClick={() => {
+              setIsOpen(false);
+              navigate(createPageUrl('QuoteForm'));
+            }}
+            className="rounded-full h-12 w-12 shadow-lg bg-white hover:bg-slate-50 text-slate-700"
+          >
+            <FileText className="w-5 h-5" />
+          </Button>
           <Button
             onClick={() => {
               setIsOpen(false);
